@@ -32,7 +32,19 @@ writeFileSync(path, xml);
 console.log("AndroidManifest.xml patched");
 
 // send-intent собран с compileSdk 35, а androidx.core 1.17 требует 36.
-// Поднимаем compileSdk у всех библиотечных модулей, где он ниже.
+// Надёжнее всего поправить сам модуль плагина в node_modules (gradle берёт его оттуда).
+const pluginGradlePath = "node_modules/send-intent/android/build.gradle";
+const pluginGradle = readFileSync(pluginGradlePath, "utf8");
+const fixed = pluginGradle
+  .replace(/compileSdkVersion\s+35/, "compileSdkVersion 36")
+  .replace(/targetSdkVersion\s+35/, "targetSdkVersion 36");
+if (fixed === pluginGradle && !/compileSdkVersion\s+36/.test(pluginGradle)) {
+  throw new Error("send-intent: не нашёл compileSdkVersion в build.gradle, патч не применён");
+}
+writeFileSync(pluginGradlePath, fixed);
+console.log("send-intent build.gradle patched");
+
+// Страховка: поднимаем compileSdk у всех библиотечных модулей, где он ниже.
 const gradlePath = "android/build.gradle";
 let gradle = readFileSync(gradlePath, "utf8");
 const marker = "// nexus: raise compileSdk";
