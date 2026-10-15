@@ -1,8 +1,11 @@
-name: Build APK
+name: Build Nexus APK
 
 on:
   push:
     branches: [main, master]
+    paths:
+      - "app/**"
+      - ".github/workflows/apk.yml"
   workflow_dispatch:
 
 jobs:

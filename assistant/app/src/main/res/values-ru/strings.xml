@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ассистент</string>
+
+    <!-- Навигация -->
+    <string name="nav_tasks">Задачи</string>
+    <string name="nav_notes">Заметки</string>
+    <string name="nav_settings">Настройки</string>
+
+    <!-- Общие действия -->
+    <string name="action_search">Поиск</string>
+    <string name="action_close_search">Закрыть поиск</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_ok">ОК</string>
+    <string name="action_back">Назад</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_undo">Отменить</string>
+    <string name="search_hint">Поиск…</string>
+    <string name="color_none">Без цвета</string>
+
+    <!-- Главная -->
+    <string name="tasks_title">Задачи</string>
+    <string name="action_clear_completed">Очистить выполненные</string>
+    <string name="filter_all">Все</string>
+    <string name="filter_active">Активные</string>
+    <string name="filter_done">Выполненные</string>
+    <string name="tasks_empty">Здесь пока пусто. Нажмите +, чтобы добавить задачу.</string>
+    <string name="task_deleted">Задача удалена</string>
+    <string name="completed_cleared">Удалено выполненных задач: %1$d</string>
+    <string name="add_task">Добавить задачу</string>
+    <string name="deadline_today">Сегодня %1$s</string>
+    <string name="deadline_tomorrow">Завтра %1$s</string>
+    <string name="deadline_overdue">Просрочено!</string>
+
+    <!-- Приоритет -->
+    <string name="priority_low">Низкий</string>
+    <string name="priority_medium">Средний</string>
+    <string name="priority_high">Высокий</string>
+
+    <!-- Редактор задачи -->
+    <string name="task_new">Новая задача</string>
+    <string name="task_edit">Редактирование</string>
+    <string name="field_title">Название</string>
+    <string name="field_description">Описание</string>
+    <string name="error_title_required">Введите название</string>
+    <string name="section_priority">Приоритет</string>
+    <string name="section_deadline">Дедлайн</string>
+    <string name="deadline_none">Без дедлайна</string>
+    <string name="deadline_clear">Убрать дедлайн</string>
+    <string name="section_repeat">Повтор</string>
+    <string name="repeat_never">Не повторять</string>
+    <string name="repeat_daily">Каждый день</string>
+    <string name="repeat_weekly">Каждую неделю</string>
+    <string name="repeat_monthly">Каждый месяц</string>
+    <string name="repeat_custom">Своё правило (RRULE)</string>
+    <string name="field_rrule">RRULE</string>
+    <string name="section_tag">Тег</string>
+    <string name="tag_add">Новый тег</string>
+    <string name="tag_new_title">Новый тег</string>
+    <string name="tag_name">Название</string>
+    <string name="section_subtasks">Подзадачи</string>
+    <string name="subtask_add_hint">Добавить подзадачу</string>
+    <string name="subtask_add">Добавить подзадачу</string>
+    <string name="subtask_remove">Удалить подзадачу</string>
+    <string name="sync_calendar">Синхронизировать с Google Календарём</string>
+    <string name="sync_calendar_hint">Заработает после подключения аккаунта Google</string>
+    <string name="delete_task_title">Удалить задачу?</string>
+    <string name="delete_task_message">Задача и её подзадачи будут удалены.</string>
+
+    <!-- Заметки -->
+    <string name="notes_title">Заметки</string>
+    <string name="add_note">Новая заметка</string>
+    <string name="notes_empty">Заметок пока нет. Нажмите +, чтобы написать.</string>
+    <string name="note_options">Заметка</string>
+    <string name="note_color">Цвет</string>
+    <string name="note_title_hint">Заголовок</string>
+    <string name="note_content_hint">Заметка</string>
+    <string name="untitled_note">Пустая заметка</string>
+
+    <!-- Настройки -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_appearance">Оформление</string>
+    <string name="theme_system">Как в системе</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="dynamic_color">Цвета Material You</string>
+    <string name="dynamic_color_hint">Брать цвета из обоев</string>
+    <string name="settings_about">О приложении</string>
+    <string name="version_fmt">Версия %1$s</string>
+</resources>

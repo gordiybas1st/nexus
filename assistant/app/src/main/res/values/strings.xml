@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Personal Assistant</string>
+
+    <!-- Navigation -->
+    <string name="nav_tasks">Tasks</string>
+    <string name="nav_notes">Notes</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Common actions -->
+    <string name="action_search">Search</string>
+    <string name="action_close_search">Close search</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_ok">OK</string>
+    <string name="action_back">Back</string>
+    <string name="action_close">Close</string>
+    <string name="action_undo">Undo</string>
+    <string name="search_hint">Search…</string>
+    <string name="color_none">No color</string>
+
+    <!-- Home -->
+    <string name="tasks_title">Tasks</string>
+    <string name="action_clear_completed">Clear completed</string>
+    <string name="filter_all">All</string>
+    <string name="filter_active">Active</string>
+    <string name="filter_done">Done</string>
+    <string name="tasks_empty">No tasks here yet. Tap + to add one.</string>
+    <string name="task_deleted">Task deleted</string>
+    <string name="completed_cleared">Removed completed tasks: %1$d</string>
+    <string name="add_task">Add task</string>
+    <string name="deadline_today">Today %1$s</string>
+    <string name="deadline_tomorrow">Tomorrow %1$s</string>
+    <string name="deadline_overdue">Overdue!</string>
+
+    <!-- Priority -->
+    <string name="priority_low">Low</string>
+    <string name="priority_medium">Medium</string>
+    <string name="priority_high">High</string>
+
+    <!-- Task editor -->
+    <string name="task_new">New task</string>
+    <string name="task_edit">Edit task</string>
+    <string name="field_title">Title</string>
+    <string name="field_description">Description</string>
+    <string name="error_title_required">Enter a title</string>
+    <string name="section_priority">Priority</string>
+    <string name="section_deadline">Deadline</string>
+    <string name="deadline_none">No deadline</string>
+    <string name="deadline_clear">Clear deadline</string>
+    <string name="section_repeat">Repeat</string>
+    <string name="repeat_never">Never</string>
+    <string name="repeat_daily">Daily</string>
+    <string name="repeat_weekly">Weekly</string>
+    <string name="repeat_monthly">Monthly</string>
+    <string name="repeat_custom">Custom (RRULE)</string>
+    <string name="field_rrule">RRULE</string>
+    <string name="section_tag">Tag</string>
+    <string name="tag_add">Add new</string>
+    <string name="tag_new_title">New tag</string>
+    <string name="tag_name">Name</string>
+    <string name="section_subtasks">Subtasks</string>
+    <string name="subtask_add_hint">Add subtask</string>
+    <string name="subtask_add">Add subtask</string>
+    <string name="subtask_remove">Remove subtask</string>
+    <string name="sync_calendar">Sync to Google Calendar</string>
+    <string name="sync_calendar_hint">Takes effect after you connect a Google account</string>
+    <string name="delete_task_title">Delete task?</string>
+    <string name="delete_task_message">The task and its subtasks will be removed.</string>
+
+    <!-- Notes -->
+    <string name="notes_title">Notes</string>
+    <string name="add_note">Add note</string>
+    <string name="notes_empty">No notes yet. Tap + to write one.</string>
+    <string name="note_options">Note</string>
+    <string name="note_color">Color</string>
+    <string name="note_title_hint">Title</string>
+    <string name="note_content_hint">Note</string>
+    <string name="untitled_note">Empty note</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="dynamic_color">Material You colors</string>
+    <string name="dynamic_color_hint">Use colors from your wallpaper</string>
+    <string name="settings_about">About</string>
+    <string name="version_fmt">Version %1$s</string>
+</resources>
