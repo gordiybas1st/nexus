@@ -30,3 +30,27 @@ if (!xml.includes("POST_NOTIFICATIONS")) {
 
 writeFileSync(path, xml);
 console.log("AndroidManifest.xml patched");
+
+// send-intent собран с compileSdk 35, а androidx.core 1.17 требует 36.
+// Поднимаем compileSdk у всех библиотечных модулей, где он ниже.
+const gradlePath = "android/build.gradle";
+let gradle = readFileSync(gradlePath, "utf8");
+const marker = "// nexus: raise compileSdk";
+if (!gradle.includes(marker)) {
+  gradle += `
+${marker}
+subprojects {
+    afterEvaluate { p ->
+        if (p.plugins.hasPlugin('com.android.library')) {
+            def cur = p.android.compileSdkVersion
+            def num = cur ? cur.toString().replace('android-', '') : '0'
+            if (num.isInteger() && num.toInteger() < 36) {
+                p.android.compileSdkVersion 36
+            }
+        }
+    }
+}
+`;
+  writeFileSync(gradlePath, gradle);
+}
+console.log("build.gradle patched");
