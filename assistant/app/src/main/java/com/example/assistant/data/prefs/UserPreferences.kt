@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.assistant.domain.model.ThemeMode
+import com.example.assistant.domain.model.ThemePreset
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -25,6 +26,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 data class UserSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
+    val themePreset: ThemePreset = ThemePreset.DEFAULT,
 )
 
 /** DataStore-backed user settings. */
@@ -41,6 +43,9 @@ class UserPreferences @Inject constructor(
                     ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                     ?: ThemeMode.SYSTEM,
                 dynamicColor = prefs[DYNAMIC_COLOR] ?: true,
+                themePreset = prefs[THEME_PRESET]
+                    ?.let { runCatching { ThemePreset.valueOf(it) }.getOrNull() }
+                    ?: ThemePreset.DEFAULT,
             )
         }
 
@@ -50,6 +55,39 @@ class UserPreferences @Inject constructor(
 
     suspend fun setDynamicColor(enabled: Boolean) {
         context.dataStore.edit { it[DYNAMIC_COLOR] = enabled }
+    }
+
+    suspend fun setThemePreset(preset: ThemePreset) {
+        context.dataStore.edit { it[THEME_PRESET] = preset.name }
+    }
+
+    /** Onboarding and backup state. */
+    val dataSettings: Flow<DataSettings> = context.dataStore.data
+        .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
+        .map { prefs ->
+            DataSettings(
+                onboardingDone = prefs[ONBOARDING_DONE] ?: false,
+                driveBackupEnabled = prefs[DRIVE_BACKUP_ENABLED] ?: false,
+                lastBackupAt = prefs[LAST_BACKUP_AT],
+                lastBackupError = prefs[LAST_BACKUP_ERROR],
+            )
+        }
+
+    suspend fun setOnboardingDone() {
+        context.dataStore.edit { it[ONBOARDING_DONE] = true }
+    }
+
+    suspend fun setDriveBackupEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[DRIVE_BACKUP_ENABLED] = enabled }
+    }
+
+    /** Records a backup attempt: [error] is null on success. */
+    suspend fun setBackupResult(at: Long?, error: String?) {
+        context.dataStore.edit {
+            it.remove(LAST_BACKUP_ERROR)
+            if (at != null) it[LAST_BACKUP_AT] = at
+            if (error != null) it[LAST_BACKUP_ERROR] = error
+        }
     }
 
     /** Google account and calendar sync state. No tokens are stored here. */
@@ -147,6 +185,11 @@ class UserPreferences @Inject constructor(
     }
 
     private companion object {
+        val THEME_PRESET = stringPreferencesKey("theme_preset")
+        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        val DRIVE_BACKUP_ENABLED = booleanPreferencesKey("drive_backup_enabled")
+        val LAST_BACKUP_AT = longPreferencesKey("last_backup_at")
+        val LAST_BACKUP_ERROR = stringPreferencesKey("last_backup_error")
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val DAILY_REVIEW_ENABLED = booleanPreferencesKey("daily_review_enabled")
         val DAILY_REVIEW_HOUR = intPreferencesKey("daily_review_hour")
@@ -182,4 +225,12 @@ data class ProductivitySettings(
     val pomodoroWorkMinutes: Int = 25,
     val pomodoroBreakMinutes: Int = 5,
     val notificationPermissionAsked: Boolean = false,
+)
+
+/** Onboarding and backup state. */
+data class DataSettings(
+    val onboardingDone: Boolean = false,
+    val driveBackupEnabled: Boolean = false,
+    val lastBackupAt: Long? = null,
+    val lastBackupError: String? = null,
 )

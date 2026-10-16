@@ -93,6 +93,17 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE isDone = 0 AND deadline IS NOT NULL AND deadline < :end ORDER BY deadline")
     suspend fun getIncompleteDueBefore(end: Long): List<TaskWithRelations>
 
+    @Transaction
+    @Query("SELECT * FROM tasks ORDER BY id")
+    suspend fun getAllWithRelations(): List<TaskWithRelations>
+
+    /** Open tasks with a location reminder. */
+    @Query("SELECT * FROM tasks WHERE isDone = 0 AND locationLat IS NOT NULL AND locationLng IS NOT NULL")
+    suspend fun getWithLocation(): List<TaskEntity>
+
+    @Query("UPDATE tasks SET updatedAt = :now WHERE id = :id")
+    suspend fun touch(id: Long, now: Long)
+
     /** Deletes every completed task and returns how many were removed. */
     @Query("DELETE FROM tasks WHERE isDone = 1")
     suspend fun clearCompleted(): Int

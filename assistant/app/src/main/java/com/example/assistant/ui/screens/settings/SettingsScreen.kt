@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -34,6 +35,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NightsStay
@@ -45,6 +49,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -81,13 +86,20 @@ import com.example.assistant.BuildConfig
 import com.example.assistant.R
 import com.example.assistant.data.local.dao.SyncConflictDao
 import com.example.assistant.data.local.entity.SyncConflictEntity
+import com.example.assistant.data.backup.BackupManager
+import com.example.assistant.data.backup.BackupScheduler
+import com.example.assistant.data.backup.DriveBackupService
+import com.example.assistant.data.prefs.DataSettings
 import com.example.assistant.data.prefs.ProductivitySettings
 import com.example.assistant.data.prefs.UserPreferences
 import com.example.assistant.data.prefs.UserSettings
-import com.example.assistant.data.remote.CalendarAccessResult
+import com.example.assistant.data.remote.AuthRequiredException
+import com.example.assistant.data.remote.ConnectOutcome
+import com.example.assistant.data.remote.ConnectTarget
 import com.example.assistant.data.remote.GoogleAuthManager
-import com.example.assistant.data.remote.SignInResult
+import com.example.assistant.data.remote.GoogleConnectFlow
 import com.example.assistant.domain.model.ThemeMode
+import com.example.assistant.domain.model.ThemePreset
 import com.example.assistant.notifications.DailyReviewScheduler
 import com.example.assistant.notifications.ReminderScheduler
 import com.example.assistant.sync.SyncQueueWriter
@@ -95,8 +107,10 @@ import com.example.assistant.sync.SyncScheduler
 import com.example.assistant.sync.SyncState
 import com.example.assistant.sync.SyncStatus
 import com.example.assistant.sync.SyncStatusProvider
+import com.example.assistant.ui.components.ColorDot
 import com.example.assistant.ui.components.DateText
 import com.example.assistant.ui.theme.AssistantTheme
+import com.example.assistant.ui.theme.previewColor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -111,25 +125,63 @@ import javax.inject.Inject
 
 /** One-off UI effects from [SettingsViewModel]. */
 sealed interface SettingsEvent {
-    /** Google needs the user to confirm Calendar access. */
-    data class LaunchConsent(val pendingIntent: PendingIntent) : SettingsEvent
-    data class Message(@StringRes val text: Int, val arg: String? = null) : SettingsEvent
+    /** Google needs the user to confirm access (Calendar or Drive). */
+    data class LaunchConsent(val pendingIntent: PendingIntent, val target: ConnectTarget) : SettingsEvent
+    data class Message(@StringRes val text: Int, val args: List<Any> = emptyList()) : SettingsEvent
 }
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferences: UserPreferences,
     private val auth: GoogleAuthManager,
+    private val connectFlow: GoogleConnectFlow,
     private val scheduler: SyncScheduler,
     private val queueWriter: SyncQueueWriter,
     private val conflictDao: SyncConflictDao,
     private val reminderScheduler: ReminderScheduler,
     private val dailyReviewScheduler: DailyReviewScheduler,
+    private val backupManager: BackupManager,
+    private val driveBackup: DriveBackupService,
+    private val backupScheduler: BackupScheduler,
     syncStatusProvider: SyncStatusProvider,
 ) : ViewModel() {
 
+    val settings: StateFlow<UserSettings> =
+        preferences.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserSettings())
+
     val productivity: StateFlow<ProductivitySettings> =
         preferences.productivity.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProductivitySettings())
+
+    val dataSettings: StateFlow<DataSettings> =
+        preferences.dataSettings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DataSettings())
+
+    val syncStatus: StateFlow<SyncStatus> =
+        syncStatusProvider.status.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SyncStatus())
+
+    val syncLog: StateFlow<List<SyncConflictEntity>> =
+        conflictDao.observeRecent(5).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _busy = MutableStateFlow(false)
+    val busy: StateFlow<Boolean> = _busy.asStateFlow()
+
+    private val _events = Channel<SettingsEvent>(Channel.BUFFERED)
+    val events: Flow<SettingsEvent> = _events.receiveAsFlow()
+
+    // ── Appearance ──
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { preferences.setThemeMode(mode) }
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { preferences.setDynamicColor(enabled) }
+    }
+
+    fun setThemePreset(preset: ThemePreset) {
+        viewModelScope.launch { preferences.setThemePreset(preset) }
+    }
+
+    // ── Reminders & focus ──
 
     /** Turns reminders and the daily review on/off and re-creates the alarms. */
     fun setNotificationsEnabled(enabled: Boolean) {
@@ -151,65 +203,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { preferences.setPomodoroDurations(workMinutes, breakMinutes) }
     }
 
-    val settings: StateFlow<UserSettings> =
-        preferences.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserSettings())
-
-    val syncStatus: StateFlow<SyncStatus> =
-        syncStatusProvider.status.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SyncStatus())
-
-    val syncLog: StateFlow<List<SyncConflictEntity>> =
-        conflictDao.observeRecent(5).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    private val _busy = MutableStateFlow(false)
-    val busy: StateFlow<Boolean> = _busy.asStateFlow()
-
-    private val _events = Channel<SettingsEvent>(Channel.BUFFERED)
-    val events: Flow<SettingsEvent> = _events.receiveAsFlow()
-
-    private var signedInEmail: String? = null
-
-    fun setThemeMode(mode: ThemeMode) {
-        viewModelScope.launch { preferences.setThemeMode(mode) }
-    }
-
-    fun setDynamicColor(enabled: Boolean) {
-        viewModelScope.launch { preferences.setDynamicColor(enabled) }
-    }
+    // ── Google account & calendar ──
 
     /** Sign-in (Credential Manager) followed by Calendar authorization. */
-    fun connect(activity: Activity) {
-        if (_busy.value) return
-        viewModelScope.launch {
-            _busy.value = true
-            try {
-                when (val result = auth.signIn(activity)) {
-                    is SignInResult.Success -> signedInEmail = result.email ?: syncStatus.value.email
-                    SignInResult.Cancelled -> return@launch
-                    SignInResult.NoAccount -> {
-                        message(R.string.msg_no_account)
-                        return@launch
-                    }
-                    is SignInResult.Failure -> {
-                        message(R.string.msg_sign_in_failed, result.message)
-                        return@launch
-                    }
-                }
-                handleAccess(auth.requestCalendarAccess(signedInEmail))
-            } finally {
-                _busy.value = false
-            }
-        }
-    }
+    fun connect(activity: Activity) = busyLaunch { handle(connectFlow.connectCalendar(activity)) }
 
-    /** Result of the consent screen launched for [SettingsEvent.LaunchConsent]. */
-    fun onConsentResult(resultCode: Int, data: Intent?) {
-        viewModelScope.launch {
-            if (resultCode != Activity.RESULT_OK) {
-                message(R.string.msg_access_denied)
-            } else {
-                handleAccess(auth.handleConsentResult(data))
-            }
-        }
+    /** Result of a consent screen launched for [SettingsEvent.LaunchConsent]. */
+    fun onConsentResult(target: ConnectTarget, resultCode: Int, data: Intent?) {
+        viewModelScope.launch { handle(connectFlow.finishConsent(target, resultCode, data)) }
     }
 
     fun syncNow() = scheduler.requestFullSync()
@@ -228,8 +229,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             scheduler.cancelAll()
             queueWriter.clear()
+            backupScheduler.cancel()
+            preferences.setDriveBackupEnabled(false)
             auth.signOut()
-            signedInEmail = null
             message(R.string.msg_signed_out)
         }
     }
@@ -238,21 +240,69 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { conflictDao.clear() }
     }
 
-    private suspend fun handleAccess(result: CalendarAccessResult) {
-        when (result) {
-            is CalendarAccessResult.Granted -> {
-                preferences.setConnected(result.email ?: signedInEmail)
-                scheduler.schedulePeriodic()
-                scheduler.requestFullSync()
-                message(R.string.msg_connected)
-            }
-            is CalendarAccessResult.NeedsConsent -> _events.send(SettingsEvent.LaunchConsent(result.pendingIntent))
-            is CalendarAccessResult.Failure -> message(R.string.msg_access_failed, result.message)
+    // ── Data ──
+
+    fun exportTo(uri: Uri) = busyLaunch {
+        runCatching { backupManager.exportTo(uri) }
+            .onSuccess { message(R.string.msg_exported) }
+            .onFailure { message(R.string.msg_export_failed, it.message.orEmpty()) }
+    }
+
+    fun importFrom(uri: Uri) = busyLaunch {
+        runCatching { backupManager.importFrom(uri) }
+            .onSuccess { message(R.string.msg_imported, it.tasks, it.notes) }
+            .onFailure { message(R.string.msg_import_failed, it.message.orEmpty()) }
+    }
+
+    /** Turning on asks for Drive access (consent screen) and schedules weekly backups. */
+    fun setDriveBackup(enabled: Boolean) = busyLaunch {
+        if (enabled) {
+            handle(connectFlow.connectDrive())
+        } else {
+            backupScheduler.cancel()
+            preferences.setDriveBackupEnabled(false)
         }
     }
 
-    private suspend fun message(@StringRes text: Int, arg: String? = null) {
-        _events.send(SettingsEvent.Message(text, arg))
+    fun backupNow() {
+        backupScheduler.backupNow()
+        viewModelScope.launch { message(R.string.msg_backup_started) }
+    }
+
+    fun restoreFromDrive() = busyLaunch {
+        try {
+            val result = driveBackup.restore()
+            if (result == null) message(R.string.msg_no_backup) else message(R.string.msg_imported, result.tasks, result.notes)
+        } catch (e: AuthRequiredException) {
+            handle(connectFlow.connectDrive())
+        } catch (e: Exception) {
+            message(R.string.msg_import_failed, e.message.orEmpty())
+        }
+    }
+
+    private fun busyLaunch(block: suspend () -> Unit) {
+        if (_busy.value) return
+        viewModelScope.launch {
+            _busy.value = true
+            try {
+                block()
+            } finally {
+                _busy.value = false
+            }
+        }
+    }
+
+    private suspend fun handle(outcome: ConnectOutcome) {
+        when (outcome) {
+            is ConnectOutcome.Connected -> message(outcome.message)
+            is ConnectOutcome.NeedsConsent -> _events.send(SettingsEvent.LaunchConsent(outcome.pendingIntent, outcome.target))
+            ConnectOutcome.Cancelled -> Unit
+            is ConnectOutcome.Failed -> message(outcome.message, outcome.detail.orEmpty())
+        }
+    }
+
+    private suspend fun message(@StringRes text: Int, vararg args: Any) {
+        _events.send(SettingsEvent.Message(text, args.toList()))
     }
 }
 
@@ -264,21 +314,29 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
     val syncLog by viewModel.syncLog.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val productivity by viewModel.productivity.collectAsStateWithLifecycle()
+    val dataSettings by viewModel.dataSettings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
 
+    var consentTarget by rememberSaveable { mutableStateOf(ConnectTarget.CALENDAR) }
     val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        viewModel.onConsentResult(result.resultCode, result.data)
+        viewModel.onConsentResult(consentTarget, result.resultCode, result.data)
+    }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let(viewModel::exportTo)
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::importFrom)
     }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
-                is SettingsEvent.LaunchConsent ->
+                is SettingsEvent.LaunchConsent -> {
+                    consentTarget = event.target
                     consentLauncher.launch(IntentSenderRequest.Builder(event.pendingIntent.intentSender).build())
-                is SettingsEvent.Message -> snackbar.showSnackbar(
-                    if (event.arg == null) context.getString(event.text) else context.getString(event.text, event.arg),
-                )
+                }
+                is SettingsEvent.Message -> snackbar.showSnackbar(context.getString(event.text, *event.args.toTypedArray()))
             }
         }
     }
@@ -289,8 +347,15 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
         syncLog = syncLog,
         busy = busy,
         productivity = productivity,
+        dataSettings = dataSettings,
         snackbarHostState = snackbar,
         actions = SettingsActions(
+            onThemePresetChange = viewModel::setThemePreset,
+            onExport = { exportLauncher.launch("assistant-backup-${java.time.LocalDate.now()}.json") },
+            onImport = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
+            onDriveBackupChange = viewModel::setDriveBackup,
+            onBackupNow = viewModel::backupNow,
+            onRestore = viewModel::restoreFromDrive,
             onNotificationsChange = viewModel::setNotificationsEnabled,
             onDailyReviewChange = viewModel::setDailyReview,
             onPomodoroChange = viewModel::setPomodoro,
@@ -307,6 +372,12 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
 
 /** Callbacks of the settings screen. */
 data class SettingsActions(
+    val onThemePresetChange: (ThemePreset) -> Unit = {},
+    val onExport: () -> Unit = {},
+    val onImport: () -> Unit = {},
+    val onDriveBackupChange: (Boolean) -> Unit = {},
+    val onBackupNow: () -> Unit = {},
+    val onRestore: () -> Unit = {},
     val onNotificationsChange: (Boolean) -> Unit = {},
     val onDailyReviewChange: (enabled: Boolean, hour: Int, minute: Int) -> Unit = { _, _, _ -> },
     val onPomodoroChange: (workMinutes: Int, breakMinutes: Int) -> Unit = { _, _ -> },
@@ -328,6 +399,7 @@ fun SettingsContent(
     syncLog: List<SyncConflictEntity>,
     busy: Boolean,
     productivity: ProductivitySettings,
+    dataSettings: DataSettings,
     snackbarHostState: SnackbarHostState,
     actions: SettingsActions,
 ) {
@@ -360,6 +432,9 @@ fun SettingsContent(
 
             SectionHeader(stringResource(R.string.settings_productivity))
             ProductivitySection(productivity, actions)
+
+            SectionHeader(stringResource(R.string.settings_data))
+            DataSection(dataSettings, busy, actions)
 
             SectionHeader(stringResource(R.string.settings_appearance))
             ThemeSection(settings, actions)
@@ -538,6 +613,62 @@ private fun MinutesStepper(label: String, value: Int, range: IntRange, step: Int
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DataSection(data: DataSettings, busy: Boolean, actions: SettingsActions) {
+    var confirmRestore by rememberSaveable { mutableStateOf(false) }
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.data_export)) },
+        supportingContent = { Text(stringResource(R.string.data_export_hint)) },
+        leadingContent = { Icon(Icons.Outlined.FileUpload, null) },
+        modifier = Modifier.clickable(enabled = !busy, onClick = actions.onExport),
+    )
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.data_import)) },
+        supportingContent = { Text(stringResource(R.string.data_import_hint)) },
+        leadingContent = { Icon(Icons.Outlined.FileDownload, null) },
+        modifier = Modifier.clickable(enabled = !busy, onClick = actions.onImport),
+    )
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.data_drive_backup)) },
+        supportingContent = {
+            val text = when {
+                data.lastBackupError != null -> data.lastBackupError
+                !data.driveBackupEnabled -> stringResource(R.string.data_drive_backup_off)
+                data.lastBackupAt != null -> stringResource(R.string.data_drive_backup_last, DateText.short(data.lastBackupAt))
+                else -> stringResource(R.string.data_drive_backup_on)
+            }
+            Text(text)
+        },
+        leadingContent = { Icon(Icons.Outlined.CloudUpload, null) },
+        trailingContent = { Switch(checked = data.driveBackupEnabled, enabled = !busy, onCheckedChange = actions.onDriveBackupChange) },
+    )
+    if (data.driveBackupEnabled) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        ) {
+            OutlinedButton(onClick = actions.onBackupNow, enabled = !busy) { Text(stringResource(R.string.data_backup_now)) }
+            TextButton(onClick = { confirmRestore = true }, enabled = !busy) { Text(stringResource(R.string.data_restore)) }
+        }
+    }
+    if (confirmRestore) {
+        AlertDialog(
+            onDismissRequest = { confirmRestore = false },
+            title = { Text(stringResource(R.string.data_restore_title)) },
+            text = { Text(stringResource(R.string.data_restore_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRestore = false
+                    actions.onRestore()
+                }) { Text(stringResource(R.string.data_restore)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmRestore = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ThemeSection(settings: UserSettings, actions: SettingsActions) {
     Column(Modifier.selectableGroup()) {
@@ -557,6 +688,38 @@ private fun ThemeSection(settings: UserSettings, actions: SettingsActions) {
                     role = Role.RadioButton,
                 ),
             )
+        }
+    }
+    val dynamicActive = settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    if (!dynamicActive) {
+        val dark = when (settings.themeMode) {
+            ThemeMode.DARK -> true
+            ThemeMode.LIGHT -> false
+            ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        }
+        val labels = mapOf(
+            ThemePreset.DEFAULT to stringResource(R.string.preset_default),
+            ThemePreset.MINIMAL to stringResource(R.string.preset_minimal),
+            ThemePreset.CYBERPUNK to stringResource(R.string.preset_cyberpunk),
+            ThemePreset.PASTEL to stringResource(R.string.preset_pastel),
+        )
+        Text(
+            stringResource(R.string.settings_palette),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        ) {
+            ThemePreset.entries.forEach { preset ->
+                FilterChip(
+                    selected = settings.themePreset == preset,
+                    onClick = { actions.onThemePresetChange(preset) },
+                    label = { Text(labels.getValue(preset)) },
+                    leadingIcon = { ColorDot(preset.previewColor(dark), size = 14.dp) },
+                )
+            }
         }
     }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -601,6 +764,7 @@ private fun SettingsPreview() {
             syncLog = listOf(SyncConflictEntity(1, 3, "abc", "Event was edited in Calendar; local version kept", System.currentTimeMillis())),
             busy = false,
             productivity = ProductivitySettings(),
+            dataSettings = DataSettings(driveBackupEnabled = true, lastBackupAt = System.currentTimeMillis()),
             snackbarHostState = remember { SnackbarHostState() },
             actions = SettingsActions(),
         )

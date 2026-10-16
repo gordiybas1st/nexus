@@ -60,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.assistant.R
 import com.example.assistant.domain.model.Priority
+import com.example.assistant.domain.model.Subtask
 import com.example.assistant.domain.model.Tag
 import com.example.assistant.domain.model.Task
 import com.example.assistant.sync.SyncState
@@ -93,6 +94,7 @@ fun HomeRoute(
         onAddTask = onAddTask,
         onTaskClick = { onEditTask(it.id) },
         onToggleDone = viewModel::setDone,
+        onSubtaskToggle = viewModel::setSubtaskDone,
         onDelete = { task ->
             viewModel.delete(task)
             scope.launch {
@@ -130,6 +132,7 @@ fun HomeContent(
     onAddTask: () -> Unit,
     onTaskClick: (Task) -> Unit,
     onToggleDone: (Task, Boolean) -> Unit,
+    onSubtaskToggle: (Task, Subtask, Boolean) -> Unit,
     onDelete: (Task) -> Unit,
     onFilterChange: (TaskFilter) -> Unit,
     onTagClick: (Long) -> Unit,
@@ -196,6 +199,7 @@ fun HomeContent(
                             task = task,
                             onClick = { onTaskClick(task) },
                             onToggleDone = { onToggleDone(task, it) },
+                            onSubtaskToggle = { sub, done -> onSubtaskToggle(task, sub, done) },
                             onDelete = { onDelete(task) },
                             modifier = Modifier.animateItemPlacement(),
                         )
@@ -265,6 +269,7 @@ private fun SwipeableTaskCard(
     task: Task,
     onClick: () -> Unit,
     onToggleDone: (Boolean) -> Unit,
+    onSubtaskToggle: (Subtask, Boolean) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -312,7 +317,7 @@ private fun SwipeableTaskCard(
             }
         },
     ) {
-        TaskCard(task = task, onToggleDone = onToggleDone, onClick = onClick)
+        TaskCard(task = task, onToggleDone = onToggleDone, onClick = onClick, onSubtaskToggle = onSubtaskToggle)
     }
 }
 
@@ -346,6 +351,7 @@ private fun HomePreview() {
             onAddTask = {},
             onTaskClick = {},
             onToggleDone = { _, _ -> },
+            onSubtaskToggle = { _, _, _ -> },
             onDelete = {},
             onFilterChange = {},
             onTagClick = {},

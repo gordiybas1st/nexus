@@ -65,6 +65,35 @@ class NotificationHelper @Inject constructor(
         notify(notificationId, notification)
     }
 
+    /** "You're near the place" reminder from a geofence. */
+    fun showLocationReminder(task: Task) {
+        val id = LOCATION_ID_BASE + task.id.toInt()
+        val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(task.title)
+            .setContentText(context.getString(R.string.reminder_location))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(openUri(uriForTask(task.id), id))
+            .addAction(0, context.getString(R.string.action_mark_done), actionIntent(ReminderReceiver.ACTION_DONE, task.id, id))
+            .build()
+        notify(id, notification)
+    }
+
+    /** Celebrates a newly unlocked achievement. */
+    fun showAchievement(id: com.example.assistant.domain.AchievementId) {
+        val notificationId = ACHIEVEMENT_ID_BASE + id.ordinal
+        val notification = NotificationCompat.Builder(context, CHANNEL_REVIEW)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.achievement_unlocked))
+            .setContentText(context.getString(achievementTitle(id)))
+            .setAutoCancel(true)
+            .setContentIntent(openUri(Uri.parse(DEEP_LINK_STATS), notificationId))
+            .build()
+        notify(notificationId, notification)
+    }
+
     /** Evening summary with Postpone / Keep / Delete actions for today's open tasks. */
     fun showDailyReview(tasks: List<Task>) {
         val lines = tasks.take(5).joinToString("\n") { "• ${it.title}" }
@@ -178,6 +207,20 @@ class NotificationHelper @Inject constructor(
         const val TIMER_NOTIFICATION_ID = 1_000_001
         const val TIMER_ALERT_ID = 1_000_002
         const val DAILY_REVIEW_ID = 1_000_003
+        private const val ACHIEVEMENT_ID_BASE = 1_000_100
+        private const val LOCATION_ID_BASE = 500_000_000
+        const val DEEP_LINK_STATS = "assistant://stats"
+
+        /** Localized title of an achievement. */
+        fun achievementTitle(id: com.example.assistant.domain.AchievementId): Int = when (id) {
+            com.example.assistant.domain.AchievementId.FIRST_TASK -> R.string.ach_first_task
+            com.example.assistant.domain.AchievementId.TASKS_10 -> R.string.ach_tasks_10
+            com.example.assistant.domain.AchievementId.TASKS_50 -> R.string.ach_tasks_50
+            com.example.assistant.domain.AchievementId.TASKS_100 -> R.string.ach_tasks_100
+            com.example.assistant.domain.AchievementId.TASKS_500 -> R.string.ach_tasks_500
+            com.example.assistant.domain.AchievementId.STREAK_7 -> R.string.ach_streak_7
+            com.example.assistant.domain.AchievementId.WEEK_NO_OVERDUE -> R.string.ach_week_no_overdue
+        }
 
         /** Deep links handled by the navigation graph. */
         const val DEEP_LINK_HOME = "assistant://home"

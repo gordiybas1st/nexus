@@ -8,7 +8,7 @@
 | 2 | Вход через Google и синхронизация с Google Календарём | ✅ |
 | 3 | Локальный ассистент-чат, голосовой ввод | ✅ |
 | 4 | Pomodoro, напоминания, вечерний обзор, виджет | ✅ |
-| 5 | Статистика, достижения, гео-напоминания, экспорт, онбординг | — |
+| 5 | Статистика, достижения, гео-напоминания, экспорт, онбординг | ✅ |
 
 ## Что работает
 - **Задачи:** список, поиск, фильтры (все, активные, выполненные, по тегу), приоритет, дедлайн, повтор (RRULE), теги, подзадачи. Свайп вправо отмечает задачу выполненной, свайп влево удаляет её (с «Отменить»).
@@ -31,7 +31,15 @@
 - **Фокус-таймер Pomodoro:** 25/5 минут (настраивается), выбор задачи перед стартом, foreground-сервис (тип `specialUse`), уведомление с прогрессом и кнопками «Пауза/Пропустить/Стоп», звук и вибрация в конце фазы.
   Время фокуса пишется в таблицу `time_entries` (для статистики в Stage 5). Таймер открывается значком ⏱ на главной, из редактора задачи или командой в чате.
 - **Виджет** 2×2 / 4×2 (Jetpack Glance): кольцо прогресса за день, топ-3 задачи (сегодняшние и просроченные сначала), кнопка «+» для новой задачи, нажатие на задачу открывает её. Обновляется после каждого изменения задач.
-- Тема: светлая, тёмная или системная, Material You на Android 12+. Интерфейс на русском и английском.
+- **Статистика** (вкладка «Статистика»): кольцевая диаграмма «выполнено / активные / просрочено», столбцы за 7 дней, серия дней подряд 🔥, итоги за неделю и месяц, время фокуса по тегам за неделю.
+- **Достижения:** первая задача; 10, 50, 100 и 500 задач; 7 дней подряд; неделя без просрочек. Хранятся в Room (таблица `achievements`), о новых приходит уведомление.
+- **Повторяющиеся задачи:** когда задача с RRULE (`FREQ=DAILY|WEEKLY|MONTHLY|YEARLY`, `INTERVAL`, `BYDAY`, `UNTIL`) отмечена выполненной, в истории остаётся выполненная копия, а сама задача переносится на следующую дату. Подзадачи сбрасываются, напоминание сдвигается.
+- **Подзадачи в списке:** нажатие на счётчик «2/5» в карточке раскрывает подзадачи с галочками.
+- **Напоминания по месту:** в редакторе кнопка «Напомнить здесь» запоминает текущее место и радиус 100–1000 м. Уведомление придёт, когда вы снова окажетесь там (Geofencing API; нужна геолокация «Всегда»).
+- **Данные:** экспорт и импорт JSON через системный выбор файла (задачи, подзадачи, теги, заметки). Импорт добавляет данные и пропускает повторы. Еженедельная копия в скрытую папку приложения в Google Drive (`drive.appdata`), есть «Сохранить сейчас» и «Восстановить».
+- **Онбординг** при первом запуске: приветствие, подключение Google (можно пропустить), разрешения (уведомления, микрофон, геолокация), пробная задача.
+- **Ярлыки** при долгом нажатии на иконку: «Новая задача», «Запустить таймер», «Что на сегодня?».
+- Тема: светлая, тёмная или системная. Material You на Android 12+, а без него палитры «Стандартная», «Минимализм», «Киберпанк» и «Пастель». Интерфейс на русском и английском.
 
 ## Сборка
 ### Через GitHub (без Android Studio)
@@ -72,6 +80,11 @@ File → Open → папка `assistant`, дождитесь Gradle Sync (JDK 17
 
 > Ключ `debug.keystore` годится только для личной debug-сборки. Для Google Play нужен отдельный секретный release-ключ и ещё один Android-клиент с его SHA-1.
 
+### 3a. Резервные копии в Google Drive (по желанию)
+1. **APIs & Services → Library**, найдите **Google Drive API** и нажмите **Enable**.
+2. На OAuth consent screen добавьте scope `https://www.googleapis.com/auth/drive.appdata`.
+3. В приложении: Настройки → Данные → «Копия в Google Drive» и разрешите доступ. Копия лежит в скрытой папке приложения: её не видно в Drive, и приложение не видит ваши файлы.
+
 ### 4. OAuth Client ID №2: Web application (рекомендуется)
 **Create credentials → OAuth client ID → Web application** (URI указывать не нужно).
 Скопируйте **Client ID** вида `1234-abc.apps.googleusercontent.com`. Это `serverClientId` для Credential Manager.
@@ -107,6 +120,8 @@ File → Open → папка `assistant`, дождитесь Gradle Sync (JDK 17
 | 403 `rateLimitExceeded` / 429 | Лимит запросов. Приложение само повторит позже. |
 | Напоминания приходят с опозданием | На Android 12 включите «Разрешить точные напоминания» в настройках приложения. Отключите оптимизацию батареи для приложения, если производитель телефона её агрессивно применяет. |
 | Нет уведомлений | Разрешите уведомления для приложения в настройках Android (запрос показывается один раз при первом запуске). |
+| Нет напоминаний по месту | Нужна геолокация «Разрешить всегда» (в редакторе кнопка «Разрешить всегда»), включённая геолокация и Google Play Services. Срабатывание может запаздывать на 1–2 минуты. |
+| Копия в Drive: 403 | Не включён Google Drive API или scope `drive.appdata` не добавлен на consent screen (шаг 3a). |
 | События не появляются | У задачи должен быть включён переключатель синхронизации. Проверьте значок облака: число означает, что изменения ждут сети. Событие без дедлайна ставится через час после создания задачи. Смотрите основной (primary) календарь. |
 | 410 Gone | Событие уже удалено. Для удаления это считается успехом, при обновлении событие создаётся заново. |
 
@@ -116,17 +131,19 @@ app/src/main/java/com/example/assistant/
 ├── AssistantApp.kt, MainActivity.kt
 ├── di/                 Hilt-модуль (БД, DAO, app scope)
 ├── ai/                 MiniAI, IntentParser, EntityExtractor, ResponseGenerator, AdviceBank, SentimentRules
-├── data/local/         Room: AppDatabase (v4 + миграции), entity/, dao/, converter/
+├── data/local/         Room: AppDatabase (v5 + миграции 1→5), entity/, dao/, converter/
+├── data/backup/        BackupManager (JSON), DriveBackupService + еженедельный воркер
 ├── data/remote/        GoogleAuthManager, CalendarApiService
-├── data/repository/    TaskRepository (пишет в очередь синхронизации), NoteRepository, ChatRepository
+├── data/repository/    TaskRepository, NoteRepository, ChatRepository, StatsRepository (статистика + достижения)
 ├── data/prefs/         UserPreferences (DataStore: тема, аккаунт, статус синхронизации)
-├── domain/model/       Task, Subtask, Tag, Note, Priority, RepeatOption, ThemeMode
+├── domain/             Recurrence (RRULE), StatsCalculator, Achievements — чистая логика с тестами
+├── domain/model/       Task, Subtask, Tag, Note, Priority, RepeatOption, ThemeMode, ThemePreset
 ├── sync/               CalendarSyncManager, SyncQueueWriter/Processor, CalendarSyncWorker, SyncScheduler
 ├── voice/              VoiceInputManager (SpeechRecognizer)
-├── notifications/      NotificationHelper, ReminderPlanner/Scheduler/Receiver, DailyReview, BootReceiver
+├── notifications/      NotificationHelper, ReminderPlanner/Scheduler/Receiver, DailyReview, GeofenceManager, BootReceiver
 ├── pomodoro/           PomodoroController (таймер), PomodoroService (foreground)
 ├── widget/             TasksWidget (Glance), WidgetRefresher
-└── ui/                 theme/, navigation/, components/, screens/{home, task_edit, notes, chat, timer, settings}
+└── ui/                 theme/, navigation/, components/, screens/{home, task_edit, notes, stats, chat, timer, settings, onboarding}
 
-app/src/test/           JVM-тесты парсера, ассистента и планировщика напоминаний (gradle testDebugUnitTest; в CI запускаются после сборки)
+app/src/test/           JVM-тесты парсера, ассистента, напоминаний, RRULE, статистики и достижений (gradle testDebugUnitTest; в CI запускаются после сборки)
 ```

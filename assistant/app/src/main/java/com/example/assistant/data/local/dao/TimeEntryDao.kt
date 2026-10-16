@@ -16,6 +16,9 @@ interface TimeEntryDao {
     @Query("SELECT COALESCE(SUM(durationMs), 0) FROM time_entries WHERE startedAt >= :since")
     fun observeTotalSince(since: Long): Flow<Long>
 
+    @Query("SELECT * FROM time_entries ORDER BY startedAt")
+    suspend fun getAll(): List<TimeEntryEntity>
+
     @Query("SELECT * FROM time_entries WHERE startedAt >= :since ORDER BY startedAt")
     fun observeSince(since: Long): Flow<List<TimeEntryEntity>>
 }

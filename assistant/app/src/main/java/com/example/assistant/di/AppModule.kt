@@ -3,6 +3,7 @@ package com.example.assistant.di
 import android.content.Context
 import androidx.room.Room
 import com.example.assistant.data.local.AppDatabase
+import com.example.assistant.data.local.dao.AchievementDao
 import com.example.assistant.data.local.dao.ChatDao
 import com.example.assistant.data.local.dao.NoteDao
 import com.example.assistant.data.local.dao.SubtaskDao
@@ -35,7 +36,12 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5,
+            )
             .build()
 
     @Provides
@@ -61,6 +67,9 @@ object AppModule {
 
     @Provides
     fun provideTimeEntryDao(db: AppDatabase): TimeEntryDao = db.timeEntryDao()
+
+    @Provides
+    fun provideAchievementDao(db: AppDatabase): AchievementDao = db.achievementDao()
 
     @Provides
     @Singleton

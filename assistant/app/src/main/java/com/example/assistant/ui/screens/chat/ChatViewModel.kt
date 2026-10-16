@@ -36,6 +36,7 @@ data class ChatUiState(
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val chat: ChatRepository,
     private val ai: MiniAI,
     private val aiContext: AppAiContext,
@@ -46,6 +47,17 @@ class ChatViewModel @Inject constructor(
 
     /** Emits when the assistant started the timer and the timer screen should open. */
     val openTimer: Flow<Unit> = _openTimer.receiveAsFlow()
+
+    /** Query passed by the "What's today?" app shortcut (consumed once). */
+    private var pendingQuery: String? = savedStateHandle.get<String>(com.example.assistant.ui.navigation.Routes.ARG_QUERY)?.takeIf { it.isNotBlank() }
+
+    /** Sends the shortcut's question once, worded in the UI language. */
+    fun consumeShortcutQuery(todayQuestion: String) {
+        val query = pendingQuery ?: return
+        pendingQuery = null
+        savedStateHandle[com.example.assistant.ui.navigation.Routes.ARG_QUERY] = ""
+        if (query == "today") send(todayQuestion)
+    }
 
     private val typing = MutableStateFlow(false)
     private val mutex = Mutex()

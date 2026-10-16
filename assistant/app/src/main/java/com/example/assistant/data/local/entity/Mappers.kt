@@ -23,6 +23,9 @@ fun TaskWithRelations.toDomain(): Task = Task(
     rrule = task.rrule,
     syncToCalendar = task.syncToCalendar,
     subtasks = subtasks.sortedBy { it.sortOrder }.map { it.toDomain() },
+    locationLat = task.locationLat,
+    locationLng = task.locationLng,
+    locationRadius = task.locationRadius,
 )
 
 /** Converts a domain task into a row (subtasks are stored separately). */
@@ -42,6 +45,9 @@ fun Task.toEntity(): TaskEntity = TaskEntity(
     syncedAt = syncedAt,
     rrule = rrule,
     syncToCalendar = syncToCalendar,
+    locationLat = locationLat,
+    locationLng = locationLng,
+    locationRadius = locationRadius,
 )
 
 fun SubtaskEntity.toDomain(): Subtask = Subtask(id, taskId, title, isDone, sortOrder)

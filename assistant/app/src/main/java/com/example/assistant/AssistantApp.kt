@@ -1,8 +1,10 @@
 package com.example.assistant
 
 import android.app.Application
+import com.example.assistant.data.backup.BackupScheduler
 import com.example.assistant.data.prefs.UserPreferences
 import com.example.assistant.notifications.DailyReviewScheduler
+import com.example.assistant.notifications.GeofenceManager
 import com.example.assistant.notifications.NotificationHelper
 import com.example.assistant.notifications.ReminderScheduler
 import com.example.assistant.sync.SyncScheduler
@@ -33,6 +35,12 @@ class AssistantApp : Application() {
     @Inject
     lateinit var dailyReviewScheduler: DailyReviewScheduler
 
+    @Inject
+    lateinit var geofenceManager: GeofenceManager
+
+    @Inject
+    lateinit var backupScheduler: BackupScheduler
+
     private val startupScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -42,6 +50,8 @@ class AssistantApp : Application() {
             // Alarms are lost on force-stop and app updates; re-create them on every start.
             runCatching { reminderScheduler.rescheduleAll() }
             runCatching { dailyReviewScheduler.schedule() }
+            runCatching { geofenceManager.registerAll() }
+            if (preferences.dataSettings.first().driveBackupEnabled) backupScheduler.scheduleWeekly()
         }
         startupScope.launch {
             if (preferences.syncSettings.first().calendarEnabled) {

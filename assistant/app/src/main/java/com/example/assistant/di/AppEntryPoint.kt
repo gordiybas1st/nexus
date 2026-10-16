@@ -4,6 +4,7 @@ import com.example.assistant.data.local.dao.TaskDao
 import com.example.assistant.data.prefs.UserPreferences
 import com.example.assistant.data.repository.TaskRepository
 import com.example.assistant.notifications.DailyReviewScheduler
+import com.example.assistant.notifications.GeofenceManager
 import com.example.assistant.notifications.NotificationHelper
 import com.example.assistant.notifications.ReminderScheduler
 import dagger.hilt.EntryPoint
@@ -20,4 +21,5 @@ interface AppEntryPoint {
     fun notificationHelper(): NotificationHelper
     fun reminderScheduler(): ReminderScheduler
     fun dailyReviewScheduler(): DailyReviewScheduler
+    fun geofenceManager(): GeofenceManager
 }

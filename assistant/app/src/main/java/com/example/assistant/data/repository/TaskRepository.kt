@@ -9,13 +9,16 @@ import com.example.assistant.data.local.entity.SyncAction
 import com.example.assistant.data.local.entity.TagEntity
 import com.example.assistant.data.local.entity.toDomain
 import com.example.assistant.data.local.entity.toEntity
+import com.example.assistant.domain.Recurrence
 import com.example.assistant.domain.model.Tag
 import com.example.assistant.domain.model.Task
+import com.example.assistant.notifications.GeofenceManager
 import com.example.assistant.notifications.ReminderScheduler
 import com.example.assistant.sync.SyncQueueWriter
 import com.example.assistant.widget.WidgetRefresher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,7 +27,8 @@ import javax.inject.Singleton
  *
  * Every change is written to Room first; matching Google Calendar operations are queued in the
  * sync outbox ([SyncQueueWriter]) and sent later by the sync worker (offline-first).
- * Reminders are rescheduled and the home-screen widget refreshed after every change.
+ * Reminders, geofences and the home-screen widget are updated after every change, and
+ * achievements are checked.
  */
 @Singleton
 class TaskRepository @Inject constructor(
@@ -35,6 +39,8 @@ class TaskRepository @Inject constructor(
     private val syncQueue: SyncQueueWriter,
     private val reminders: ReminderScheduler,
     private val widget: WidgetRefresher,
+    private val geofences: GeofenceManager,
+    private val stats: StatsRepository,
 ) {
     /** All tasks with subtasks and tags, updated on every change. */
     fun observeTasks(): Flow<List<Task>> =
@@ -79,19 +85,62 @@ class TaskRepository @Inject constructor(
         return id
     }
 
+    /**
+     * Marks a task done / not done. Completing a repeating task (RRULE + deadline) keeps a
+     * finished copy for history and statistics and moves the task to its next occurrence.
+     */
     suspend fun setDone(id: Long, done: Boolean) {
         val now = System.currentTimeMillis()
+        val task = taskDao.getWithRelations(id)?.toDomain()
+        val rrule = task?.rrule
+        val deadline = task?.deadline
+        val next = if (done && !task?.isDone.orFalse() && !rrule.isNullOrBlank() && deadline != null) {
+            Recurrence.nextAfter(rrule, deadline, now, ZoneId.systemDefault())
+        } else {
+            null
+        }
+        if (task != null && deadline != null && next != null) {
+            val shift = next - deadline
+            val historyId = db.withTransaction {
+                val historyId = taskDao.insert(
+                    task.copy(
+                        id = 0, isDone = true, completedAt = now, createdAt = now, updatedAt = now,
+                        rrule = null, syncToCalendar = false, googleEventId = null, syncedAt = null, reminderAt = null,
+                        locationLat = null, locationLng = null, locationRadius = null,
+                    ).toEntity(),
+                )
+                subtaskDao.insertAll(task.subtasks.mapIndexed { i, sub -> sub.copy(id = 0, sortOrder = i).toEntity(historyId) })
+                taskDao.update(
+                    task.copy(
+                        deadline = next, reminderAt = task.reminderAt?.plus(shift),
+                        isDone = false, completedAt = null, updatedAt = now,
+                    ).toEntity(),
+                )
+                subtaskDao.deleteForTask(id)
+                subtaskDao.insertAll(task.subtasks.mapIndexed { i, sub -> sub.copy(id = 0, isDone = false, sortOrder = i).toEntity(id) })
+                historyId
+            }
+            afterChange(historyId)
+            afterChange(id)
+            return
+        }
         taskDao.markDone(id, done, if (done) now else null, now)
         afterChange(id)
     }
 
-    suspend fun setSubtaskDone(id: Long, done: Boolean) = subtaskDao.setDone(id, done)
+    /** Toggles a subtask from the list; the task counts as changed (calendar description, widget). */
+    suspend fun setSubtaskDone(taskId: Long, subtaskId: Long, done: Boolean) {
+        subtaskDao.setDone(subtaskId, done)
+        taskDao.touch(taskId, System.currentTimeMillis())
+        afterChange(taskId)
+    }
 
     /** Deletes a task; its subtasks go with it (FK cascade) and its event is queued for deletion. */
     suspend fun deleteTask(id: Long) {
         val eventId = taskDao.getWithRelations(id)?.task?.googleEventId
         taskDao.deleteById(id)
         reminders.cancel(id)
+        geofences.remove(id)
         widget.refresh()
         if (eventId != null) syncQueue.enqueue(SyncAction.DELETE, id, eventId)
     }
@@ -133,9 +182,13 @@ class TaskRepository @Inject constructor(
 
     private suspend fun afterChange(id: Long) {
         reminders.schedule(id)
+        geofences.update(id)
         widget.refresh()
         queueCalendarChange(id)
+        runCatching { stats.checkAchievements() }
     }
+
+    private fun Boolean?.orFalse(): Boolean = this ?: false
 
     /**
      * Queues the calendar side of a local change:

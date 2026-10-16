@@ -6,6 +6,9 @@ enum class Priority { LOW, MEDIUM, HIGH }
 /** App-wide theme selection. */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+/** Color palette used when Material You dynamic colors are off. */
+enum class ThemePreset { DEFAULT, MINIMAL, CYBERPUNK, PASTEL }
+
 /**
  * Preset repeat options shown in the task editor.
  *
@@ -62,7 +65,14 @@ data class Task(
     val rrule: String? = null,
     val syncToCalendar: Boolean = false,
     val subtasks: List<Subtask> = emptyList(),
+    /** Location reminder: fires when the user enters this circle. */
+    val locationLat: Double? = null,
+    val locationLng: Double? = null,
+    val locationRadius: Float? = null,
 ) {
+    /** True when a location reminder is set. */
+    val hasLocation: Boolean get() = locationLat != null && locationLng != null
+
     /** Number of finished subtasks. */
     val completedSubtasks: Int get() = subtasks.count { it.isDone }
 

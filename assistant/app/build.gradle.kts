@@ -25,8 +25,8 @@ android {
         applicationId = "com.example.assistant"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "2.0"
         vectorDrawables { useSupportLibrary = true }
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
     }
@@ -113,6 +113,9 @@ dependencies {
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+
+    // Location reminders (geofences)
+    implementation("com.google.android.gms:play-services-location:21.2.0")
 
     // Home-screen widget
     implementation("androidx.glance:glance-appwidget:1.0.0")

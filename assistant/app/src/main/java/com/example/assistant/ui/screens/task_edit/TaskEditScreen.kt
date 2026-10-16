@@ -1,6 +1,11 @@
 package com.example.assistant.ui.screens.task_edit
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.text.format.DateFormat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +27,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -40,12 +47,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -70,6 +79,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.assistant.R
@@ -88,6 +98,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import kotlin.math.roundToInt
 
 /** Task editor wired to [TaskEditViewModel]. Closes itself after save/delete. */
 @Composable
@@ -118,6 +129,9 @@ fun TaskEditRoute(
             onRemoveSubtask = viewModel::removeSubtask,
             onSyncToggle = viewModel::onSyncToggle,
             onReminderChange = viewModel::onReminderChange,
+            onUseCurrentLocation = viewModel::useCurrentLocation,
+            onLocationRadiusChange = viewModel::onLocationRadiusChange,
+            onClearLocation = viewModel::clearLocation,
             onStartFocus = { viewModel.startFocus()?.let(onOpenTimer) },
             onSave = viewModel::save,
             onDelete = viewModel::delete,
@@ -142,6 +156,9 @@ data class TaskEditActions(
     val onRemoveSubtask: (Long) -> Unit = {},
     val onSyncToggle: (Boolean) -> Unit = {},
     val onReminderChange: (ReminderOption) -> Unit = {},
+    val onUseCurrentLocation: () -> Unit = {},
+    val onLocationRadiusChange: (Float) -> Unit = {},
+    val onClearLocation: () -> Unit = {},
     val onStartFocus: () -> Unit = {},
     val onSave: () -> Unit = {},
     val onDelete: () -> Unit = {},
@@ -208,6 +225,9 @@ fun TaskEditContent(state: TaskEditUiState, actions: TaskEditActions) {
             }
             Section(stringResource(R.string.section_reminder)) {
                 ReminderSelector(state.reminder, enabled = state.deadline != null, onSelect = actions.onReminderChange)
+            }
+            Section(stringResource(R.string.section_location)) {
+                LocationSection(state, actions)
             }
             Section(stringResource(R.string.section_repeat)) {
                 RepeatSelector(state.repeat, state.customRrule, actions.onRepeatChange, actions.onCustomRruleChange)
@@ -422,6 +442,76 @@ private fun RepeatSelector(
         )
     }
 }
+
+/** "Remind me when I'm here": saves the current position and a radius; asks for location permissions. */
+@Composable
+private fun LocationSection(state: TaskEditUiState, actions: TaskEditActions) {
+    val context = LocalContext.current
+    var needBackground by remember { mutableStateOf(false) }
+    val backgroundLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { needBackground = false }
+    val foregroundLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result.values.any { it }) {
+            actions.onUseCurrentLocation()
+            needBackground = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+    }
+
+    val lat = state.locationLat
+    val lng = state.locationLng
+    if (lat != null && lng != null) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.LocationOn, null)
+            Text(
+                stringResource(R.string.location_set, "%.5f, %.5f".format(lat, lng)),
+                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+            )
+            IconButton(onClick = actions.onClearLocation) { Icon(Icons.Default.Close, stringResource(R.string.location_clear)) }
+        }
+        Text(stringResource(R.string.location_radius, state.locationRadius.toInt()), style = MaterialTheme.typography.bodyMedium)
+        Slider(
+            value = state.locationRadius,
+            onValueChange = { actions.onLocationRadiusChange((it / 50f).roundToInt() * 50f) },
+            valueRange = 100f..1000f,
+        )
+    } else {
+        OutlinedButton(
+            onClick = {
+                val fine = Manifest.permission.ACCESS_FINE_LOCATION
+                val coarse = Manifest.permission.ACCESS_COARSE_LOCATION
+                if (hasPermission(context, fine) || hasPermission(context, coarse)) {
+                    actions.onUseCurrentLocation()
+                    needBackground = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                        !hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                } else {
+                    foregroundLauncher.launch(arrayOf(fine, coarse))
+                }
+            },
+            enabled = !state.locatingNow,
+        ) {
+            Icon(Icons.Outlined.MyLocation, null)
+            Text(
+                stringResource(if (state.locatingNow) R.string.location_locating else R.string.location_use_current),
+                Modifier.padding(start = 8.dp),
+            )
+        }
+        Text(stringResource(R.string.location_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (state.locationError) {
+            Text(stringResource(R.string.location_error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+    // Geofence events need "Allow all the time" on Android 10+.
+    val backgroundMissing = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+        !hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    if (backgroundMissing && (needBackground || (lat != null && lng != null))) {
+        Text(stringResource(R.string.location_background_needed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        TextButton(onClick = { backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION) }) {
+            Text(stringResource(R.string.location_allow_background))
+        }
+    }
+}
+
+private fun hasPermission(context: android.content.Context, permission: String) =
+    ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

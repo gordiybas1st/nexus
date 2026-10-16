@@ -34,6 +34,9 @@ interface TagDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(tag: TagEntity): Long
 
+    @Query("SELECT * FROM tags")
+    suspend fun getAll(): List<TagEntity>
+
     @Query("SELECT * FROM tags WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): TagEntity?
 
@@ -46,6 +49,9 @@ interface TagDao {
 interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<NoteEntity>>
+
+    @Query("SELECT * FROM notes ORDER BY id")
+    suspend fun getAll(): List<NoteEntity>
 
     @Query("SELECT * FROM notes WHERE id = :id")
     suspend fun getById(id: Long): NoteEntity?

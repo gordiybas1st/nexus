@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_add"
+        android:shortcutId="new_task"
+        android:shortcutShortLabel="@string/shortcut_new_task">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="assistant://newtask"
+            android:targetClass="com.example.assistant.MainActivity"
+            android:targetPackage="com.example.assistant" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_timer"
+        android:shortcutId="start_timer"
+        android:shortcutShortLabel="@string/shortcut_start_timer">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="assistant://timer/start"
+            android:targetClass="com.example.assistant.MainActivity"
+            android:targetPackage="com.example.assistant" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_today"
+        android:shortcutId="whats_today"
+        android:shortcutShortLabel="@string/shortcut_today">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="assistant://chat/today"
+            android:targetClass="com.example.assistant.MainActivity"
+            android:targetPackage="com.example.assistant" />
+    </shortcut>
+</shortcuts>

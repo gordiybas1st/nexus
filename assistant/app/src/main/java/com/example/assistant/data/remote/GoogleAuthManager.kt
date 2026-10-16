@@ -75,11 +75,8 @@ class GoogleAuthManager @Inject constructor(
 ) {
     private val authorizationClient get() = Identity.getAuthorizationClient(context)
 
-    @Volatile
-    private var cachedToken: String? = null
-
-    @Volatile
-    private var cachedTokenExpiresAt: Long = 0L
+    /** Access tokens per OAuth scope: token to expiry time. */
+    private val tokens = java.util.concurrent.ConcurrentHashMap<String, Pair<String, Long>>()
 
     /** True when a Web client id is configured and Credential Manager sign-in can be used. */
     val isCredentialSignInConfigured: Boolean get() = BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()
@@ -116,13 +113,19 @@ class GoogleAuthManager @Inject constructor(
      * Asks for the Calendar scope. Returns [CalendarAccessResult.NeedsConsent] when Google
      * must show a consent screen; the UI launches it and calls [handleConsentResult].
      */
-    suspend fun requestCalendarAccess(email: String? = null): CalendarAccessResult = try {
-        val result = authorizationClient.authorize(buildRequest(email)).await()
+    suspend fun requestCalendarAccess(email: String? = null): CalendarAccessResult = requestAccess(CALENDAR_SCOPE, email)
+
+    /** Same as [requestCalendarAccess] for the Drive app-data folder (backups). */
+    suspend fun requestDriveAccess(): CalendarAccessResult =
+        requestAccess(DRIVE_APPDATA_SCOPE, preferences.syncSettings.first().accountEmail)
+
+    private suspend fun requestAccess(scope: String, email: String?): CalendarAccessResult = try {
+        val result = authorizationClient.authorize(buildRequest(scope, email)).await()
         val pendingIntent = result.pendingIntent
         if (result.hasResolution() && pendingIntent != null) {
             CalendarAccessResult.NeedsConsent(pendingIntent)
         } else {
-            remember(result)
+            remember(scope, result)
             CalendarAccessResult.Granted(result.email() ?: email)
         }
     } catch (e: ApiException) {
@@ -131,13 +134,13 @@ class GoogleAuthManager @Inject constructor(
         CalendarAccessResult.Failure(e.message ?: e.javaClass.simpleName)
     }
 
-    /** Completes the consent flow started from [CalendarAccessResult.NeedsConsent]. */
-    fun handleConsentResult(data: Intent?): CalendarAccessResult = try {
+    /** Completes the consent flow started from [CalendarAccessResult.NeedsConsent] for [scope]. */
+    fun handleConsentResult(data: Intent?, scope: String = CALENDAR_SCOPE): CalendarAccessResult = try {
         val result = authorizationClient.getAuthorizationResultFromIntent(data)
         if (result.accessToken.isNullOrBlank()) {
             CalendarAccessResult.Failure("No access token returned")
         } else {
-            remember(result)
+            remember(scope, result)
             CalendarAccessResult.Granted(result.email())
         }
     } catch (e: ApiException) {
@@ -145,31 +148,31 @@ class GoogleAuthManager @Inject constructor(
     }
 
     /**
-     * Returns a usable access token, silently renewing it when needed.
+     * Returns a usable Calendar access token, silently renewing it when needed.
      *
      * @throws AuthRequiredException when the user has to grant access again in the UI.
      */
-    suspend fun getValidAccessToken(): String {
-        val token = cachedToken
-        if (token != null && System.currentTimeMillis() < cachedTokenExpiresAt) return token
+    suspend fun getValidAccessToken(): String = tokenFor(CALENDAR_SCOPE)
 
+    /** Drive app-data token for backups. @throws AuthRequiredException */
+    suspend fun getDriveAccessToken(): String = tokenFor(DRIVE_APPDATA_SCOPE)
+
+    private suspend fun tokenFor(scope: String): String {
+        tokens[scope]?.let { (token, expiresAt) -> if (System.currentTimeMillis() < expiresAt) return token }
         val email = preferences.syncSettings.first().accountEmail
         val result = try {
-            authorizationClient.authorize(buildRequest(email)).await()
+            authorizationClient.authorize(buildRequest(scope, email)).await()
         } catch (e: ApiException) {
             throw AuthRequiredException(describe(e))
         }
         if (result.hasResolution()) throw AuthRequiredException()
-        remember(result)
+        remember(scope, result)
         return result.accessToken ?: throw AuthRequiredException("No access token returned")
     }
 
-    /** Drops a token rejected by the API (HTTP 401) so the next call fetches a new one. */
+    /** Drops a token rejected by an API (HTTP 401) so the next call fetches a new one. */
     suspend fun invalidateToken(token: String) {
-        if (cachedToken == token) {
-            cachedToken = null
-            cachedTokenExpiresAt = 0L
-        }
+        tokens.entries.removeIf { it.value.first == token }
         withContext(Dispatchers.IO) { runCatching { GoogleAuthUtil.clearToken(context, token) } }
     }
 
@@ -178,23 +181,21 @@ class GoogleAuthManager @Inject constructor(
 
     /** Forgets the account locally and clears cached Google credentials. */
     suspend fun signOut() {
-        cachedToken?.let { invalidateToken(it) }
-        cachedToken = null
-        cachedTokenExpiresAt = 0L
+        tokens.values.map { it.first }.forEach { invalidateToken(it) }
+        tokens.clear()
         runCatching { CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest()) }
         preferences.clearAccount()
     }
 
-    private fun buildRequest(email: String?): AuthorizationRequest {
-        val builder = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(CALENDAR_SCOPE)))
+    private fun buildRequest(scope: String, email: String?): AuthorizationRequest {
+        val builder = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(scope)))
         if (!email.isNullOrBlank()) builder.setAccount(Account(email, GOOGLE_ACCOUNT_TYPE))
         return builder.build()
     }
 
-    private fun remember(result: AuthorizationResult) {
+    private fun remember(scope: String, result: AuthorizationResult) {
         val token = result.accessToken ?: return
-        cachedToken = token
-        cachedTokenExpiresAt = System.currentTimeMillis() + TOKEN_LIFETIME_MS
+        tokens[scope] = token to System.currentTimeMillis() + TOKEN_LIFETIME_MS
     }
 
     @Suppress("DEPRECATION")
@@ -205,6 +206,9 @@ class GoogleAuthManager @Inject constructor(
     companion object {
         /** Read/write access to events. Use `calendar.app.created` to avoid Google verification. */
         const val CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+
+        /** Hidden per-app folder in Google Drive, used for backups. */
+        const val DRIVE_APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
         private const val GOOGLE_ACCOUNT_TYPE = "com.google"
 
         /** Tokens live 60 min; renew a bit earlier. */

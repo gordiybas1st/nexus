@@ -101,6 +101,7 @@ class BootReceiver : BroadcastReceiver() {
             try {
                 deps.reminderScheduler().rescheduleAll()
                 deps.dailyReviewScheduler().schedule()
+                runCatching { deps.geofenceManager().registerAll() }
             } finally {
                 pending.finish()
             }

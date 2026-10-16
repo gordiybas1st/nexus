@@ -113,6 +113,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { repository.setDone(task.id, done) }
     }
 
+    fun setSubtaskDone(task: Task, subtask: com.example.assistant.domain.model.Subtask, done: Boolean) {
+        viewModelScope.launch { repository.setSubtaskDone(task.id, subtask.id, done) }
+    }
+
     fun delete(task: Task) {
         viewModelScope.launch { repository.deleteTask(task.id) }
     }

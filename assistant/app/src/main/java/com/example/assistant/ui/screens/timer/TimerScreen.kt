@@ -99,6 +99,14 @@ class TimerViewModel @Inject constructor(
         .observeTotalSince(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 
+    init {
+        // "Start timer" app shortcut: assistant://timer/start
+        if (savedStateHandle.get<String>(Routes.ARG_AUTOSTART) == "start" && controller.state.value.phase == PomodoroPhase.IDLE) {
+            savedStateHandle[Routes.ARG_AUTOSTART] = ""
+            controller.start(null, null)
+        }
+    }
+
     private val _selectedTaskId = MutableStateFlow(
         savedStateHandle.get<Long>(Routes.ARG_TASK_ID)?.takeIf { it > 0 } ?: controller.state.value.taskId,
     )

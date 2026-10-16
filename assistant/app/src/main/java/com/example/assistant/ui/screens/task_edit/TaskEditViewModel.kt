@@ -9,6 +9,7 @@ import com.example.assistant.domain.model.RepeatOption
 import com.example.assistant.domain.model.Subtask
 import com.example.assistant.domain.model.Tag
 import com.example.assistant.domain.model.Task
+import com.example.assistant.notifications.GeofenceManager
 import com.example.assistant.pomodoro.PomodoroController
 import com.example.assistant.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -62,6 +63,11 @@ data class TaskEditUiState(
     val subtasks: List<SubtaskDraft> = emptyList(),
     val syncToCalendar: Boolean = false,
     val reminder: ReminderOption = ReminderOption.AUTO,
+    val locationLat: Double? = null,
+    val locationLng: Double? = null,
+    val locationRadius: Float = GeofenceManager.DEFAULT_RADIUS_M,
+    val locatingNow: Boolean = false,
+    val locationError: Boolean = false,
 )
 
 /** One-off results that close the screen. */
@@ -75,6 +81,7 @@ class TaskEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: TaskRepository,
     private val pomodoro: PomodoroController,
+    private val geofences: GeofenceManager,
 ) : ViewModel() {
 
     private val taskId: Long = savedStateHandle.get<Long>(Routes.ARG_TASK_ID) ?: -1L
@@ -112,6 +119,9 @@ class TaskEditViewModel @Inject constructor(
                             subtasks = task.subtasks.map { SubtaskDraft(nextKey++, it.title, it.isDone) },
                             syncToCalendar = task.syncToCalendar,
                             reminder = ReminderOption.from(task.deadline, task.reminderAt),
+                            locationLat = task.locationLat,
+                            locationLng = task.locationLng,
+                            locationRadius = task.locationRadius ?: GeofenceManager.DEFAULT_RADIUS_M,
                         )
                     }
                 }
@@ -137,6 +147,30 @@ class TaskEditViewModel @Inject constructor(
     fun onSyncToggle(value: Boolean) = _state.update { it.copy(syncToCalendar = value) }
 
     fun onReminderChange(value: ReminderOption) = _state.update { it.copy(reminder = value) }
+
+    /** True when location permission is granted (background is checked separately for geofences). */
+    fun hasLocationPermission(): Boolean = geofences.hasForegroundPermission()
+
+    fun hasBackgroundLocationPermission(): Boolean = geofences.hasBackgroundPermission()
+
+    /** Saves the current position as the reminder place. */
+    fun useCurrentLocation() {
+        _state.update { it.copy(locatingNow = true, locationError = false) }
+        viewModelScope.launch {
+            val position = geofences.currentLocation()
+            _state.update {
+                if (position == null) {
+                    it.copy(locatingNow = false, locationError = true)
+                } else {
+                    it.copy(locatingNow = false, locationLat = position.first, locationLng = position.second)
+                }
+            }
+        }
+    }
+
+    fun onLocationRadiusChange(value: Float) = _state.update { it.copy(locationRadius = value) }
+
+    fun clearLocation() = _state.update { it.copy(locationLat = null, locationLng = null, locationError = false) }
 
     /** Starts a Pomodoro session for this (already saved) task. Returns its id, or null for a new task. */
     fun startFocus(): Long? {
@@ -187,6 +221,9 @@ class TaskEditViewModel @Inject constructor(
             priority = s.priority,
             deadline = s.deadline,
             reminderAt = reminderAt(s),
+            locationLat = s.locationLat,
+            locationLng = s.locationLng,
+            locationRadius = if (s.locationLat != null) s.locationRadius else null,
             rrule = rrule,
             tag = s.tags.firstOrNull { it.id == s.tagId },
             syncToCalendar = s.syncToCalendar,

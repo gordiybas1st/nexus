@@ -6,6 +6,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.assistant.data.local.converter.Converters
+import com.example.assistant.data.local.dao.AchievementDao
 import com.example.assistant.data.local.dao.ChatDao
 import com.example.assistant.data.local.dao.NoteDao
 import com.example.assistant.data.local.dao.SubtaskDao
@@ -14,6 +15,7 @@ import com.example.assistant.data.local.dao.SyncQueueDao
 import com.example.assistant.data.local.dao.TagDao
 import com.example.assistant.data.local.dao.TaskDao
 import com.example.assistant.data.local.dao.TimeEntryDao
+import com.example.assistant.data.local.entity.AchievementEntity
 import com.example.assistant.data.local.entity.ChatMessageEntity
 import com.example.assistant.data.local.entity.NoteEntity
 import com.example.assistant.data.local.entity.SubtaskEntity
@@ -34,8 +36,9 @@ import com.example.assistant.data.local.entity.TimeEntryEntity
         SyncConflictEntity::class,
         ChatMessageEntity::class,
         TimeEntryEntity::class,
+        AchievementEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -48,6 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncConflictDao(): SyncConflictDao
     abstract fun chatDao(): ChatDao
     abstract fun timeEntryDao(): TimeEntryDao
+    abstract fun achievementDao(): AchievementDao
 
     companion object {
         const val NAME = "assistant.db"
@@ -103,6 +107,19 @@ abstract class AppDatabase : RoomDatabase() {
                         "FOREIGN KEY(`taskId`) REFERENCES `tasks`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL)",
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_time_entries_taskId` ON `time_entries` (`taskId`)")
+            }
+        }
+
+        /** Stage 5: location reminders and achievements. */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `locationLat` REAL")
+                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `locationLng` REAL")
+                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `locationRadius` REAL")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `achievements` (" +
+                        "`id` TEXT NOT NULL, `unlockedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                )
             }
         }
     }

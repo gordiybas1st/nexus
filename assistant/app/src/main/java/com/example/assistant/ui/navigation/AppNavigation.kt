@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartToy
@@ -36,6 +37,7 @@ import com.example.assistant.ui.screens.home.HomeRoute
 import com.example.assistant.ui.screens.notes.NoteEditRoute
 import com.example.assistant.ui.screens.notes.NotesRoute
 import com.example.assistant.ui.screens.settings.SettingsRoute
+import com.example.assistant.ui.screens.stats.StatsRoute
 import com.example.assistant.ui.screens.task_edit.TaskEditRoute
 import com.example.assistant.ui.screens.timer.TimerRoute
 
@@ -43,8 +45,13 @@ import com.example.assistant.ui.screens.timer.TimerRoute
 object Routes {
     const val TASKS = "tasks"
     const val NOTES = "notes"
-    const val CHAT = "chat"
+    const val STATS = "stats"
     const val SETTINGS = "settings"
+
+    const val ARG_QUERY = "q"
+    /** Chat pattern; `q=today` sends "What's today?" on open (app shortcut). */
+    const val CHAT = "chat?$ARG_QUERY={$ARG_QUERY}"
+    const val CHAT_PLAIN = "chat"
 
     const val ARG_TASK_ID = "taskId"
     const val TASK_EDIT = "task_edit?$ARG_TASK_ID={$ARG_TASK_ID}"
@@ -54,23 +61,28 @@ object Routes {
     const val NOTE_EDIT = "note_edit?$ARG_NOTE_ID={$ARG_NOTE_ID}"
     fun noteEdit(id: Long? = null) = "note_edit?$ARG_NOTE_ID=${id ?: -1L}"
 
-    const val TIMER = "timer?$ARG_TASK_ID={$ARG_TASK_ID}"
+    const val ARG_AUTOSTART = "autostart"
+    const val TIMER = "timer?$ARG_TASK_ID={$ARG_TASK_ID}&$ARG_AUTOSTART={$ARG_AUTOSTART}"
     fun timer(taskId: Long? = null) = "timer?$ARG_TASK_ID=${taskId ?: -1L}"
 
     const val LINK_HOME = "assistant://home"
     const val LINK_TASK = "assistant://task/{$ARG_TASK_ID}"
     const val LINK_NEW_TASK = "assistant://newtask"
     const val LINK_TIMER = "assistant://timer"
+    const val LINK_TIMER_START = "assistant://timer/{$ARG_AUTOSTART}"
+    const val LINK_CHAT = "assistant://chat/{$ARG_QUERY}"
+    const val LINK_STATS = "assistant://stats"
 }
 
-private data class TopLevelDestination(val route: String, @StringRes val label: Int, val icon: ImageVector)
+/** [route] is the graph pattern, [target] what to navigate to. */
+private data class TopLevelDestination(val route: String, val target: String, @StringRes val label: Int, val icon: ImageVector)
 
-/** Bottom-bar destinations. Stats is added in Stage 5. */
 private val topLevelDestinations = listOf(
-    TopLevelDestination(Routes.TASKS, R.string.nav_tasks, Icons.Outlined.CheckCircle),
-    TopLevelDestination(Routes.NOTES, R.string.nav_notes, Icons.Outlined.StickyNote2),
-    TopLevelDestination(Routes.CHAT, R.string.nav_chat, Icons.Outlined.SmartToy),
-    TopLevelDestination(Routes.SETTINGS, R.string.nav_settings, Icons.Outlined.Settings),
+    TopLevelDestination(Routes.TASKS, Routes.TASKS, R.string.nav_tasks, Icons.Outlined.CheckCircle),
+    TopLevelDestination(Routes.NOTES, Routes.NOTES, R.string.nav_notes, Icons.Outlined.StickyNote2),
+    TopLevelDestination(Routes.STATS, Routes.STATS, R.string.nav_stats, Icons.Outlined.BarChart),
+    TopLevelDestination(Routes.CHAT, Routes.CHAT_PLAIN, R.string.nav_chat, Icons.Outlined.SmartToy),
+    TopLevelDestination(Routes.SETTINGS, Routes.SETTINGS, R.string.nav_settings, Icons.Outlined.Settings),
 )
 
 private fun NavHostController.navigateTopLevel(route: String) {
@@ -100,7 +112,7 @@ fun AppNavigation() {
                         val selected = currentDestination?.hierarchy?.any { it.route == dest.route } == true
                         NavigationBarItem(
                             selected = selected,
-                            onClick = { navController.navigateTopLevel(dest.route) },
+                            onClick = { navController.navigateTopLevel(dest.target) },
                             icon = { Icon(dest.icon, contentDescription = null) },
                             label = { Text(stringResource(dest.label)) },
                         )
@@ -148,7 +160,14 @@ fun AppNavigation() {
             ) {
                 NoteEditRoute(onBack = { navController.popBackStack() })
             }
-            composable(Routes.CHAT) {
+            composable(Routes.STATS, deepLinks = listOf(navDeepLink { uriPattern = Routes.LINK_STATS })) {
+                StatsRoute()
+            }
+            composable(
+                Routes.CHAT,
+                arguments = listOf(navArgument(Routes.ARG_QUERY) { type = NavType.StringType; defaultValue = "" }),
+                deepLinks = listOf(navDeepLink { uriPattern = Routes.LINK_CHAT }),
+            ) {
                 ChatRoute(
                     onOpenTask = { id -> navController.navigate(Routes.taskEdit(id)) },
                     onOpenTimer = { navController.navigate(Routes.timer()) },
@@ -156,8 +175,14 @@ fun AppNavigation() {
             }
             composable(
                 Routes.TIMER,
-                arguments = listOf(navArgument(Routes.ARG_TASK_ID) { type = NavType.LongType; defaultValue = -1L }),
-                deepLinks = listOf(navDeepLink { uriPattern = Routes.LINK_TIMER }),
+                arguments = listOf(
+                    navArgument(Routes.ARG_TASK_ID) { type = NavType.LongType; defaultValue = -1L },
+                    navArgument(Routes.ARG_AUTOSTART) { type = NavType.StringType; defaultValue = "" },
+                ),
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = Routes.LINK_TIMER },
+                    navDeepLink { uriPattern = Routes.LINK_TIMER_START },
+                ),
             ) {
                 TimerRoute(onBack = { navController.popBackStack() })
             }

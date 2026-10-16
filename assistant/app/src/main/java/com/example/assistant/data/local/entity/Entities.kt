@@ -37,6 +37,9 @@ data class TaskEntity(
     val syncedAt: Long?,
     val rrule: String?,
     val syncToCalendar: Boolean,
+    val locationLat: Double? = null,
+    val locationLng: Double? = null,
+    val locationRadius: Float? = null,
 )
 
 /** Room row for a subtask; deleted together with its parent task. */

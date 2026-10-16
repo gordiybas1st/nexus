@@ -87,6 +87,8 @@ fun ChatRoute(
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(viewModel) { viewModel.openTimer.collect { onOpenTimer() } }
+    val todayQuestion = stringResource(R.string.chip_today)
+    LaunchedEffect(viewModel) { viewModel.consumeShortcutQuery(todayQuestion) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

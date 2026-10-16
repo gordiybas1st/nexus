@@ -1,6 +1,7 @@
 package com.example.assistant.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Card
@@ -21,6 +23,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +50,7 @@ import com.example.assistant.ui.theme.AssistantTheme
  * One row in the task list.
  *
  * @param onToggleDone called with the new checked state (after haptic feedback).
+ * @param onSubtaskToggle when set, tapping the "2/5" counter expands subtasks with checkboxes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,8 +59,10 @@ fun TaskCard(
     onToggleDone: (Boolean) -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onSubtaskToggle: ((Subtask, Boolean) -> Unit)? = null,
 ) {
     val haptic = LocalHapticFeedback.current
+    var expanded by rememberSaveable(task.id) { mutableStateOf(false) }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
     Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
@@ -88,14 +97,34 @@ fun TaskCard(
                         modifier = Modifier.padding(top = 2.dp),
                     )
                 }
-                TaskMeta(task)
+                TaskMeta(task, onSubtasksClick = if (onSubtaskToggle != null) ({ expanded = !expanded }) else null)
+                if (expanded && onSubtaskToggle != null) {
+                    task.subtasks.forEach { sub ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = sub.isDone,
+                                onCheckedChange = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSubtaskToggle(sub, it)
+                                },
+                                modifier = Modifier.size(36.dp),
+                            )
+                            Text(
+                                sub.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textDecoration = if (sub.isDone) TextDecoration.LineThrough else null,
+                                color = if (sub.isDone) muted else Color.Unspecified,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TaskMeta(task: Task) {
+private fun TaskMeta(task: Task, onSubtasksClick: (() -> Unit)? = null) {
     val hasDeadline = task.deadline != null
     val hasMeta = hasDeadline || task.tag != null || task.subtasks.isNotEmpty() || task.rrule != null
     if (!hasMeta) return
@@ -122,13 +151,19 @@ private fun TaskMeta(task: Task) {
             Icon(Icons.Outlined.Repeat, contentDescription = stringResource(R.string.section_repeat), Modifier.size(14.dp), tint = muted)
         }
         if (task.subtasks.isNotEmpty()) {
-            MetaItem(icon = { Icon(Icons.Outlined.Checklist, null, Modifier.size(14.dp), tint = muted) }) {
-                Text(
-                    "${task.completedSubtasks}/${task.subtasks.size}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = muted,
-                )
+            val clickModifier = if (onSubtasksClick != null) Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onSubtasksClick) else Modifier
+            Row(clickModifier.padding(horizontal = 2.dp)) {
+                MetaItem(icon = { Icon(Icons.Outlined.Checklist, null, Modifier.size(14.dp), tint = muted) }) {
+                    Text(
+                        "${task.completedSubtasks}/${task.subtasks.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = muted,
+                    )
+                }
             }
+        }
+        if (task.hasLocation) {
+            Icon(Icons.Outlined.LocationOn, contentDescription = stringResource(R.string.section_location), Modifier.size(14.dp), tint = muted)
         }
         task.tag?.let { tag -> TagChip(tag) }
     }
