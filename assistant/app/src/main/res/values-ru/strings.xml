@@ -118,4 +118,26 @@
     <string name="msg_access_failed">Не удалось получить доступ к календарю: %1$s</string>
     <string name="msg_disconnected">Синхронизация с календарём выключена</string>
     <string name="msg_signed_out">Вы вышли из аккаунта</string>
+
+    <!-- Чат с ассистентом -->
+    <string name="nav_chat">Ассистент</string>
+    <string name="chat_title">Ассистент</string>
+    <string name="chat_clear">Очистить чат</string>
+    <string name="chat_clear_title">Очистить всю историю чата?</string>
+    <string name="chat_input_hint">Сообщение</string>
+    <string name="chat_listening">Слушаю…</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_mic">Голосовой ввод</string>
+    <string name="chat_mic_stop">Остановить запись</string>
+    <string name="chat_open_task">Открыть задачу</string>
+    <string name="chat_typing">печатает…</string>
+    <string name="chat_welcome">Привет! Я работаю без интернета. Попробуй «добавь задачу купить хлеб завтра в 10», «что на сегодня» или нажми подсказку ниже.</string>
+    <string name="chip_today">Что на сегодня?</string>
+    <string name="chip_tip">Дай совет</string>
+    <string name="chip_tired">Нет сил</string>
+    <string name="chip_what_next">Что мне делать?</string>
+    <string name="chip_help">Помощь</string>
+    <string name="voice_unavailable">Распознавание речи недоступно на этом устройстве</string>
+    <string name="voice_permission_denied">Для голосового ввода нужен доступ к микрофону</string>
+    <string name="voice_error">Не удалось распознать речь, попробуйте ещё раз</string>
 </resources>

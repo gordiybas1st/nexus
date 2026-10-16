@@ -6,7 +6,7 @@
 |---|---|---|
 | 1 | Задачи, заметки, теги, подзадачи, тема | ✅ |
 | 2 | Вход через Google и синхронизация с Google Календарём | ✅ |
-| 3 | Локальный ассистент-чат, голосовой ввод | — |
+| 3 | Локальный ассистент-чат, голосовой ввод | ✅ |
 | 4 | Pomodoro, напоминания, вечерний обзор, виджет | — |
 | 5 | Статистика, достижения, гео-напоминания, экспорт, онбординг | — |
 
@@ -15,6 +15,14 @@
 - **Заметки:** сетка в 2 колонки, цвета, поиск, автосохранение (500 мс).
 - **Google Календарь:** задача с включённым «Синхронизировать с Google Календарём» становится событием в основном календаре. Её изменение, выполнение (✅ в названии) и удаление переносятся туда же. Без сети изменения копятся в очереди и уходят, когда сеть появится.
 - Значок облака в шапке списка задач показывает состояние синхронизации. Нажатие запускает синхронизацию, а при ошибке открывает настройки.
+- **Ассистент (вкладка «Ассистент»):** работает без интернета, на правилах (regex и ключевые слова, RU + EN). Понимает:
+  - создание задач с датой, временем, приоритетом и тегом: «добавь задачу купить хлеб завтра в 10 срочно #дом», «напомни позвонить маме в пятницу в 18:00», «add task pay rent on monday»;
+  - вопросы: «что на сегодня», «что просрочено», «покажи важные задачи», «сколько выполнено», «как успехи», «что мне делать»;
+  - команды: «очисти выполненные», «включи тёмную тему», «синхронизируй с календарём»;
+  - советы («посоветуй», 24 совета) и настроение («устал», «скучно», «я молодец»).
+
+  Под ответом со ссылкой на задачу есть кнопка «Открыть задачу». История хранится в Room. Кнопка 🎤 включает голосовой ввод (системный SpeechRecognizer, язык устройства), распознанная фраза отправляется сразу.
+  Команда «запусти таймер» распознаётся, а сам таймер Pomodoro появится в Stage 4.
 - Тема: светлая, тёмная или системная, Material You на Android 12+. Интерфейс на русском и английском.
 
 ## Сборка
@@ -97,11 +105,15 @@ File → Open → папка `assistant`, дождитесь Gradle Sync (JDK 17
 app/src/main/java/com/example/assistant/
 ├── AssistantApp.kt, MainActivity.kt
 ├── di/                 Hilt-модуль (БД, DAO, app scope)
-├── data/local/         Room: AppDatabase (v2 + миграция), entity/, dao/, converter/
+├── ai/                 MiniAI, IntentParser, EntityExtractor, ResponseGenerator, AdviceBank, SentimentRules
+├── data/local/         Room: AppDatabase (v3 + миграции), entity/, dao/, converter/
 ├── data/remote/        GoogleAuthManager, CalendarApiService
-├── data/repository/    TaskRepository (пишет в очередь синхронизации), NoteRepository
+├── data/repository/    TaskRepository (пишет в очередь синхронизации), NoteRepository, ChatRepository
 ├── data/prefs/         UserPreferences (DataStore: тема, аккаунт, статус синхронизации)
 ├── domain/model/       Task, Subtask, Tag, Note, Priority, RepeatOption, ThemeMode
 ├── sync/               CalendarSyncManager, SyncQueueWriter/Processor, CalendarSyncWorker, SyncScheduler
-└── ui/                 theme/, navigation/, components/, screens/{home, task_edit, notes, settings}
+├── voice/              VoiceInputManager (SpeechRecognizer)
+└── ui/                 theme/, navigation/, components/, screens/{home, task_edit, notes, chat, settings}
+
+app/src/test/           JVM-тесты парсера и ассистента (gradle testDebugUnitTest; в CI запускаются после сборки)
 ```

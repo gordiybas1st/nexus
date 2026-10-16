@@ -80,3 +80,12 @@ data class Note(
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
 )
+
+/** A message in the assistant chat. [taskId] links a bot reply to a task. */
+data class ChatMessage(
+    val id: Long,
+    val text: String,
+    val isUser: Boolean,
+    val createdAt: Long,
+    val taskId: Long? = null,
+)

@@ -6,12 +6,14 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.assistant.data.local.converter.Converters
+import com.example.assistant.data.local.dao.ChatDao
 import com.example.assistant.data.local.dao.NoteDao
 import com.example.assistant.data.local.dao.SubtaskDao
 import com.example.assistant.data.local.dao.SyncConflictDao
 import com.example.assistant.data.local.dao.SyncQueueDao
 import com.example.assistant.data.local.dao.TagDao
 import com.example.assistant.data.local.dao.TaskDao
+import com.example.assistant.data.local.entity.ChatMessageEntity
 import com.example.assistant.data.local.entity.NoteEntity
 import com.example.assistant.data.local.entity.SubtaskEntity
 import com.example.assistant.data.local.entity.SyncConflictEntity
@@ -28,8 +30,9 @@ import com.example.assistant.data.local.entity.TaskEntity
         NoteEntity::class,
         SyncQueueEntity::class,
         SyncConflictEntity::class,
+        ChatMessageEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -40,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun syncConflictDao(): SyncConflictDao
+    abstract fun chatDao(): ChatDao
 
     companion object {
         const val NAME = "assistant.db"
@@ -64,6 +68,20 @@ abstract class AppDatabase : RoomDatabase() {
                         "`googleEventId` TEXT, " +
                         "`message` TEXT NOT NULL, " +
                         "`createdAt` INTEGER NOT NULL)",
+                )
+            }
+        }
+
+        /** Stage 3: assistant chat history. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `chat_messages` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`text` TEXT NOT NULL, " +
+                        "`isUser` INTEGER NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "`taskId` INTEGER)",
                 )
             }
         }

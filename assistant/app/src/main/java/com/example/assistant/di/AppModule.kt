@@ -3,6 +3,7 @@ package com.example.assistant.di
 import android.content.Context
 import androidx.room.Room
 import com.example.assistant.data.local.AppDatabase
+import com.example.assistant.data.local.dao.ChatDao
 import com.example.assistant.data.local.dao.NoteDao
 import com.example.assistant.data.local.dao.SubtaskDao
 import com.example.assistant.data.local.dao.SyncConflictDao
@@ -33,7 +34,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .build()
 
     @Provides
@@ -53,6 +54,9 @@ object AppModule {
 
     @Provides
     fun provideSyncConflictDao(db: AppDatabase): SyncConflictDao = db.syncConflictDao()
+
+    @Provides
+    fun provideChatDao(db: AppDatabase): ChatDao = db.chatDao()
 
     @Provides
     @Singleton

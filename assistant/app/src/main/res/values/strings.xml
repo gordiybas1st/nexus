@@ -118,4 +118,26 @@
     <string name="msg_access_failed">Could not get Calendar access: %1$s</string>
     <string name="msg_disconnected">Calendar sync turned off</string>
     <string name="msg_signed_out">Signed out</string>
+
+    <!-- Assistant chat -->
+    <string name="nav_chat">Assistant</string>
+    <string name="chat_title">Assistant</string>
+    <string name="chat_clear">Clear chat</string>
+    <string name="chat_clear_title">Clear the whole chat history?</string>
+    <string name="chat_input_hint">Message</string>
+    <string name="chat_listening">Listening…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_mic">Voice input</string>
+    <string name="chat_mic_stop">Stop listening</string>
+    <string name="chat_open_task">Open task</string>
+    <string name="chat_typing">typing…</string>
+    <string name="chat_welcome">Hi! I work offline. Try “add task buy milk tomorrow at 10”, “what\'s today” or tap a suggestion below.</string>
+    <string name="chip_today">What\'s today?</string>
+    <string name="chip_tip">Give me a tip</string>
+    <string name="chip_tired">I\'m tired</string>
+    <string name="chip_what_next">What should I do?</string>
+    <string name="chip_help">Help</string>
+    <string name="voice_unavailable">Speech recognition is not available on this device</string>
+    <string name="voice_permission_denied">Microphone permission is needed for voice input</string>
+    <string name="voice_error">Could not recognize speech, try again</string>
 </resources>
