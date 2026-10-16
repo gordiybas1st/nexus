@@ -126,7 +126,7 @@ private fun WidgetContent(data: WidgetData) {
     Column(
         GlanceModifier
             .fillMaxSize()
-            .background(GlanceTheme.colors.widgetBackground)
+            .background(GlanceTheme.colors.background)
             .cornerRadius(16.dp)
             .padding(12.dp),
     ) {
