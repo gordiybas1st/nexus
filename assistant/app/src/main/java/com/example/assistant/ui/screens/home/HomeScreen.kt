@@ -61,7 +61,9 @@ import com.example.assistant.R
 import com.example.assistant.domain.model.Priority
 import com.example.assistant.domain.model.Tag
 import com.example.assistant.domain.model.Task
+import com.example.assistant.sync.SyncState
 import com.example.assistant.ui.components.ColorDot
+import com.example.assistant.ui.components.SyncIndicator
 import com.example.assistant.ui.components.TaskCard
 import com.example.assistant.ui.components.toColorOrNull
 import com.example.assistant.ui.theme.AssistantTheme
@@ -73,6 +75,7 @@ import kotlinx.coroutines.launch
 fun HomeRoute(
     onAddTask: () -> Unit,
     onEditTask: (Long) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -100,6 +103,13 @@ fun HomeRoute(
         onTagClick = viewModel::toggleTag,
         onQueryChange = viewModel::setQuery,
         onSearchActiveChange = viewModel::setSearchActive,
+        onSyncClick = {
+            if (state.syncStatus.state == SyncState.AUTH_REQUIRED || state.syncStatus.state == SyncState.ERROR) {
+                onOpenSettings()
+            } else {
+                viewModel.syncNow()
+            }
+        },
         onClearCompleted = {
             viewModel.clearCompleted { count ->
                 scope.launch { snackbar.showSnackbar(clearedTemplate.format(count)) }
@@ -122,6 +132,7 @@ fun HomeContent(
     onTagClick: (Long) -> Unit,
     onQueryChange: (String) -> Unit,
     onSearchActiveChange: (Boolean) -> Unit,
+    onSyncClick: () -> Unit,
     onClearCompleted: () -> Unit,
 ) {
     Scaffold(
@@ -141,6 +152,7 @@ fun HomeContent(
                             Icon(Icons.Default.Close, stringResource(R.string.action_close_search))
                         }
                     } else {
+                        SyncIndicator(state.syncStatus, onSyncClick)
                         IconButton(onClick = { onSearchActiveChange(true) }) {
                             Icon(Icons.Default.Search, stringResource(R.string.action_search))
                         }
@@ -332,6 +344,7 @@ private fun HomePreview() {
             onTagClick = {},
             onQueryChange = {},
             onSearchActiveChange = {},
+            onSyncClick = {},
             onClearCompleted = {},
         )
     }

@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.assistant.data.repository.TaskRepository
 import com.example.assistant.domain.model.Tag
 import com.example.assistant.domain.model.Task
+import com.example.assistant.sync.SyncScheduler
+import com.example.assistant.sync.SyncStatus
+import com.example.assistant.sync.SyncStatusProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +29,7 @@ data class HomeUiState(
     val query: String = "",
     val isSearchActive: Boolean = false,
     val isLoading: Boolean = true,
+    val syncStatus: SyncStatus = SyncStatus(),
 )
 
 private data class Filters(
@@ -44,6 +48,8 @@ private val taskOrder: Comparator<Task> = compareBy<Task> { it.isDone }
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: TaskRepository,
+    syncStatusProvider: SyncStatusProvider,
+    private val syncScheduler: SyncScheduler,
 ) : ViewModel() {
 
     private val filters = MutableStateFlow(Filters(TaskFilter.ALL, null, "", false))
@@ -52,7 +58,8 @@ class HomeViewModel @Inject constructor(
         repository.observeTasks(),
         repository.observeTags(),
         filters,
-    ) { tasks, tags, f ->
+        syncStatusProvider.status,
+    ) { tasks, tags, f, sync ->
         val q = f.query.trim()
         val visible = tasks
             .asSequence()
@@ -80,6 +87,7 @@ class HomeViewModel @Inject constructor(
             query = f.query,
             isSearchActive = f.searchActive,
             isLoading = false,
+            syncStatus = sync,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
@@ -111,6 +119,11 @@ class HomeViewModel @Inject constructor(
 
     fun restore(task: Task) {
         viewModelScope.launch { runCatching { repository.restoreTask(task) } }
+    }
+
+    /** Sends pending calendar changes now (reconciling everything first). */
+    fun syncNow() {
+        syncScheduler.requestFullSync()
     }
 
     /** Deletes completed tasks and reports how many were removed. */

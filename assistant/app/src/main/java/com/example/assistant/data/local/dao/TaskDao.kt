@@ -65,6 +65,21 @@ interface TaskDao {
     @Query("SELECT COUNT(*) FROM tasks WHERE isDone = 1 AND completedAt >= :since")
     fun getCompletedCountSince(since: Long): Flow<Int>
 
+    /** Stores calendar link info without touching [TaskEntity.updatedAt]. */
+    @Query("UPDATE tasks SET googleEventId = :eventId, syncedAt = :syncedAt WHERE id = :id")
+    suspend fun setSyncInfo(id: Long, eventId: String?, syncedAt: Long?)
+
+    @Query("SELECT * FROM tasks WHERE isDone = 1 AND googleEventId IS NOT NULL")
+    suspend fun getCompletedWithEvents(): List<TaskEntity>
+
+    /** Tasks that should exist in Google Calendar. */
+    @Transaction
+    @Query("SELECT * FROM tasks WHERE syncToCalendar = 1")
+    suspend fun getSyncCandidates(): List<TaskWithRelations>
+
+    @Query("SELECT * FROM tasks WHERE googleEventId IS NOT NULL")
+    suspend fun getAllWithEvents(): List<TaskEntity>
+
     /** Deletes every completed task and returns how many were removed. */
     @Query("DELETE FROM tasks WHERE isDone = 1")
     suspend fun clearCompleted(): Int

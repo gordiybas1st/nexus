@@ -65,7 +65,7 @@
     <string name="subtask_add">Add subtask</string>
     <string name="subtask_remove">Remove subtask</string>
     <string name="sync_calendar">Sync to Google Calendar</string>
-    <string name="sync_calendar_hint">Takes effect after you connect a Google account</string>
+    <string name="sync_calendar_hint">Creates an event in your primary Google Calendar (connect it in Settings)</string>
     <string name="delete_task_title">Delete task?</string>
     <string name="delete_task_message">The task and its subtasks will be removed.</string>
 
@@ -89,4 +89,33 @@
     <string name="dynamic_color_hint">Use colors from your wallpaper</string>
     <string name="settings_about">About</string>
     <string name="version_fmt">Version %1$s</string>
+
+    <!-- Account & calendar sync -->
+    <string name="settings_account">Account</string>
+    <string name="settings_sync_log">Sync log</string>
+    <string name="calendar_title">Google Calendar</string>
+    <string name="calendar_not_connected">Not connected. Tasks marked for sync will appear in your calendar.</string>
+    <string name="calendar_sync_off">Calendar sync is off</string>
+    <string name="action_connect_calendar">Connect Google Calendar</string>
+    <string name="action_grant_access">Grant access again</string>
+    <string name="action_sync_now">Sync now</string>
+    <string name="action_disconnect_calendar">Disconnect Calendar</string>
+    <string name="action_sign_out">Sign out</string>
+    <string name="action_clear_log">Clear log</string>
+    <string name="sync_auth_required">Calendar access expired or was revoked. Grant it again to keep syncing.</string>
+    <string name="sync_synced_at">Synced %1$s</string>
+    <string name="sync_pending_count">Waiting to sync: %1$d</string>
+    <string name="sync_state_synced">Synced</string>
+    <string name="sync_state_pending">Changes waiting to sync</string>
+    <string name="sync_state_syncing">Syncing…</string>
+    <string name="sync_state_error">Sync error</string>
+    <string name="sync_state_auth">Sign-in required</string>
+    <string name="sync_state_disabled">Sync off</string>
+    <string name="msg_connected">Google Calendar connected</string>
+    <string name="msg_no_account">No Google account on this device. Add one in system settings.</string>
+    <string name="msg_sign_in_failed">Sign-in failed: %1$s</string>
+    <string name="msg_access_denied">Calendar access was not granted</string>
+    <string name="msg_access_failed">Could not get Calendar access: %1$s</string>
+    <string name="msg_disconnected">Calendar sync turned off</string>
+    <string name="msg_signed_out">Signed out</string>
 </resources>

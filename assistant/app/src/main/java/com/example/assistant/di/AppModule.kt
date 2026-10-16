@@ -5,6 +5,8 @@ import androidx.room.Room
 import com.example.assistant.data.local.AppDatabase
 import com.example.assistant.data.local.dao.NoteDao
 import com.example.assistant.data.local.dao.SubtaskDao
+import com.example.assistant.data.local.dao.SyncConflictDao
+import com.example.assistant.data.local.dao.SyncQueueDao
 import com.example.assistant.data.local.dao.TagDao
 import com.example.assistant.data.local.dao.TaskDao
 import dagger.Module
@@ -30,7 +32,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME).build()
+        Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideTaskDao(db: AppDatabase): TaskDao = db.taskDao()
@@ -43,6 +47,12 @@ object AppModule {
 
     @Provides
     fun provideNoteDao(db: AppDatabase): NoteDao = db.noteDao()
+
+    @Provides
+    fun provideSyncQueueDao(db: AppDatabase): SyncQueueDao = db.syncQueueDao()
+
+    @Provides
+    fun provideSyncConflictDao(db: AppDatabase): SyncConflictDao = db.syncConflictDao()
 
     @Provides
     @Singleton

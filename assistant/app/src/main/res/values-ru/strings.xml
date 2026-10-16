@@ -65,7 +65,7 @@
     <string name="subtask_add">Добавить подзадачу</string>
     <string name="subtask_remove">Удалить подзадачу</string>
     <string name="sync_calendar">Синхронизировать с Google Календарём</string>
-    <string name="sync_calendar_hint">Заработает после подключения аккаунта Google</string>
+    <string name="sync_calendar_hint">Создаёт событие в основном Google Календаре (подключите его в настройках)</string>
     <string name="delete_task_title">Удалить задачу?</string>
     <string name="delete_task_message">Задача и её подзадачи будут удалены.</string>
 
@@ -89,4 +89,33 @@
     <string name="dynamic_color_hint">Брать цвета из обоев</string>
     <string name="settings_about">О приложении</string>
     <string name="version_fmt">Версия %1$s</string>
+
+    <!-- Аккаунт и синхронизация -->
+    <string name="settings_account">Аккаунт</string>
+    <string name="settings_sync_log">Журнал синхронизации</string>
+    <string name="calendar_title">Google Календарь</string>
+    <string name="calendar_not_connected">Не подключён. Задачи с включённой синхронизацией появятся в календаре.</string>
+    <string name="calendar_sync_off">Синхронизация с календарём выключена</string>
+    <string name="action_connect_calendar">Подключить Google Календарь</string>
+    <string name="action_grant_access">Выдать доступ снова</string>
+    <string name="action_sync_now">Синхронизировать</string>
+    <string name="action_disconnect_calendar">Отключить календарь</string>
+    <string name="action_sign_out">Выйти</string>
+    <string name="action_clear_log">Очистить журнал</string>
+    <string name="sync_auth_required">Доступ к календарю истёк или отозван. Выдайте его снова, чтобы синхронизация продолжилась.</string>
+    <string name="sync_synced_at">Синхронизировано %1$s</string>
+    <string name="sync_pending_count">Ждут синхронизации: %1$d</string>
+    <string name="sync_state_synced">Синхронизировано</string>
+    <string name="sync_state_pending">Есть несинхронизированные изменения</string>
+    <string name="sync_state_syncing">Синхронизация…</string>
+    <string name="sync_state_error">Ошибка синхронизации</string>
+    <string name="sync_state_auth">Нужно войти снова</string>
+    <string name="sync_state_disabled">Синхронизация выключена</string>
+    <string name="msg_connected">Google Календарь подключён</string>
+    <string name="msg_no_account">На телефоне нет аккаунта Google. Добавьте его в настройках системы.</string>
+    <string name="msg_sign_in_failed">Не удалось войти: %1$s</string>
+    <string name="msg_access_denied">Доступ к календарю не выдан</string>
+    <string name="msg_access_failed">Не удалось получить доступ к календарю: %1$s</string>
+    <string name="msg_disconnected">Синхронизация с календарём выключена</string>
+    <string name="msg_signed_out">Вы вышли из аккаунта</string>
 </resources>

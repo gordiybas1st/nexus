@@ -101,6 +101,13 @@ fun AppNavigation() {
                 HomeRoute(
                     onAddTask = { navController.navigate(Routes.taskEdit()) },
                     onEditTask = { id -> navController.navigate(Routes.taskEdit(id)) },
+                    onOpenSettings = {
+                        navController.navigate(Routes.SETTINGS) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                 )
             }
             composable(
