@@ -11,7 +11,9 @@ import com.example.assistant.data.local.entity.toDomain
 import com.example.assistant.data.local.entity.toEntity
 import com.example.assistant.domain.model.Tag
 import com.example.assistant.domain.model.Task
+import com.example.assistant.notifications.ReminderScheduler
 import com.example.assistant.sync.SyncQueueWriter
+import com.example.assistant.widget.WidgetRefresher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -22,6 +24,7 @@ import javax.inject.Singleton
  *
  * Every change is written to Room first; matching Google Calendar operations are queued in the
  * sync outbox ([SyncQueueWriter]) and sent later by the sync worker (offline-first).
+ * Reminders are rescheduled and the home-screen widget refreshed after every change.
  */
 @Singleton
 class TaskRepository @Inject constructor(
@@ -30,6 +33,8 @@ class TaskRepository @Inject constructor(
     private val subtaskDao: SubtaskDao,
     private val tagDao: TagDao,
     private val syncQueue: SyncQueueWriter,
+    private val reminders: ReminderScheduler,
+    private val widget: WidgetRefresher,
 ) {
     /** All tasks with subtasks and tags, updated on every change. */
     fun observeTasks(): Flow<List<Task>> =
@@ -42,6 +47,9 @@ class TaskRepository @Inject constructor(
     fun observeCompletedCountSince(since: Long): Flow<Int> = taskDao.getCompletedCountSince(since)
 
     suspend fun getTask(id: Long): Task? = taskDao.getWithRelations(id)?.toDomain()
+
+    /** Open tasks with a deadline before [end] (epoch millis). */
+    suspend fun getIncompleteDueBefore(end: Long): List<Task> = taskDao.getIncompleteDueBefore(end).map { it.toDomain() }
 
     /**
      * Inserts ([Task.id] == 0) or updates a task and replaces its subtasks.
@@ -67,14 +75,14 @@ class TaskRepository @Inject constructor(
             )
             savedId
         }
-        queueCalendarChange(id)
+        afterChange(id)
         return id
     }
 
     suspend fun setDone(id: Long, done: Boolean) {
         val now = System.currentTimeMillis()
         taskDao.markDone(id, done, if (done) now else null, now)
-        queueCalendarChange(id)
+        afterChange(id)
     }
 
     suspend fun setSubtaskDone(id: Long, done: Boolean) = subtaskDao.setDone(id, done)
@@ -83,6 +91,8 @@ class TaskRepository @Inject constructor(
     suspend fun deleteTask(id: Long) {
         val eventId = taskDao.getWithRelations(id)?.task?.googleEventId
         taskDao.deleteById(id)
+        reminders.cancel(id)
+        widget.refresh()
         if (eventId != null) syncQueue.enqueue(SyncAction.DELETE, id, eventId)
     }
 
@@ -98,13 +108,14 @@ class TaskRepository @Inject constructor(
                 restored.subtasks.mapIndexed { index, sub -> sub.copy(id = 0, sortOrder = index).toEntity(task.id) },
             )
         }
-        queueCalendarChange(task.id)
+        afterChange(task.id)
     }
 
     /** Removes all completed tasks (and their events); returns how many were removed. */
     suspend fun clearCompleted(): Int {
         val withEvents = taskDao.getCompletedWithEvents()
         val removed = taskDao.clearCompleted()
+        widget.refresh()
         withEvents.forEach { row ->
             row.googleEventId?.let { syncQueue.enqueue(SyncAction.DELETE, row.id, it) }
         }
@@ -119,6 +130,12 @@ class TaskRepository @Inject constructor(
     }
 
     suspend fun deleteTag(tag: Tag) = tagDao.delete(tag.toEntity())
+
+    private suspend fun afterChange(id: Long) {
+        reminders.schedule(id)
+        widget.refresh()
+        queueCalendarChange(id)
+    }
 
     /**
      * Queues the calendar side of a local change:

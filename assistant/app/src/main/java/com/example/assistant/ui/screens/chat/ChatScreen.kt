@@ -83,8 +83,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatRoute(
     onOpenTask: (Long) -> Unit,
+    onOpenTimer: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
+    LaunchedEffect(viewModel) { viewModel.openTimer.collect { onOpenTimer() } }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

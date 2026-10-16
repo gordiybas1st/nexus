@@ -2,6 +2,9 @@ package com.example.assistant
 
 import android.app.Application
 import com.example.assistant.data.prefs.UserPreferences
+import com.example.assistant.notifications.DailyReviewScheduler
+import com.example.assistant.notifications.NotificationHelper
+import com.example.assistant.notifications.ReminderScheduler
 import com.example.assistant.sync.SyncScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -11,7 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Application class; bootstraps Hilt and keeps calendar sync scheduled. */
+/** Application class; bootstraps Hilt, notification channels, reminders and calendar sync. */
 @HiltAndroidApp
 class AssistantApp : Application() {
 
@@ -21,10 +24,25 @@ class AssistantApp : Application() {
     @Inject
     lateinit var syncScheduler: SyncScheduler
 
+    @Inject
+    lateinit var notificationHelper: NotificationHelper
+
+    @Inject
+    lateinit var reminderScheduler: ReminderScheduler
+
+    @Inject
+    lateinit var dailyReviewScheduler: DailyReviewScheduler
+
     private val startupScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
+        notificationHelper.createChannels()
+        startupScope.launch {
+            // Alarms are lost on force-stop and app updates; re-create them on every start.
+            runCatching { reminderScheduler.rescheduleAll() }
+            runCatching { dailyReviewScheduler.schedule() }
+        }
         startupScope.launch {
             if (preferences.syncSettings.first().calendarEnabled) {
                 syncScheduler.schedulePeriodic()

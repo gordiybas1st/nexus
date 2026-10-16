@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -92,6 +93,7 @@ import java.time.ZoneOffset
 @Composable
 fun TaskEditRoute(
     onBack: () -> Unit,
+    onOpenTimer: (Long) -> Unit,
     viewModel: TaskEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -115,6 +117,8 @@ fun TaskEditRoute(
             onToggleSubtask = viewModel::toggleSubtask,
             onRemoveSubtask = viewModel::removeSubtask,
             onSyncToggle = viewModel::onSyncToggle,
+            onReminderChange = viewModel::onReminderChange,
+            onStartFocus = { viewModel.startFocus()?.let(onOpenTimer) },
             onSave = viewModel::save,
             onDelete = viewModel::delete,
         ),
@@ -137,6 +141,8 @@ data class TaskEditActions(
     val onToggleSubtask: (Long) -> Unit = {},
     val onRemoveSubtask: (Long) -> Unit = {},
     val onSyncToggle: (Boolean) -> Unit = {},
+    val onReminderChange: (ReminderOption) -> Unit = {},
+    val onStartFocus: () -> Unit = {},
     val onSave: () -> Unit = {},
     val onDelete: () -> Unit = {},
 )
@@ -158,6 +164,9 @@ fun TaskEditContent(state: TaskEditUiState, actions: TaskEditActions) {
                 },
                 actions = {
                     if (!state.isNew) {
+                        IconButton(onClick = actions.onStartFocus) {
+                            Icon(Icons.Outlined.Timer, stringResource(R.string.action_focus))
+                        }
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Outlined.Delete, stringResource(R.string.action_delete))
                         }
@@ -196,6 +205,9 @@ fun TaskEditContent(state: TaskEditUiState, actions: TaskEditActions) {
             }
             Section(stringResource(R.string.section_deadline)) {
                 DeadlinePicker(state.deadline, actions.onDeadlineChange)
+            }
+            Section(stringResource(R.string.section_reminder)) {
+                ReminderSelector(state.reminder, enabled = state.deadline != null, onSelect = actions.onReminderChange)
             }
             Section(stringResource(R.string.section_repeat)) {
                 RepeatSelector(state.repeat, state.customRrule, actions.onRepeatChange, actions.onCustomRruleChange)
@@ -408,6 +420,44 @@ private fun RepeatSelector(
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderSelector(selected: ReminderOption, enabled: Boolean, onSelect: (ReminderOption) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val labels = mapOf(
+        ReminderOption.AUTO to stringResource(R.string.reminder_auto),
+        ReminderOption.AT_DEADLINE to stringResource(R.string.reminder_at_deadline),
+        ReminderOption.MIN_10 to stringResource(R.string.reminder_10_min),
+        ReminderOption.HOUR_1 to stringResource(R.string.reminder_1_hour),
+        ReminderOption.DAY_1 to stringResource(R.string.reminder_1_day),
+        ReminderOption.CUSTOM to stringResource(R.string.reminder_custom),
+    )
+    ExposedDropdownMenuBox(expanded = expanded && enabled, onExpandedChange = { if (enabled) expanded = it }) {
+        OutlinedTextField(
+            value = labels.getValue(selected),
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            supportingText = if (enabled) null else { { Text(stringResource(R.string.reminder_needs_deadline)) } },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(),
+        )
+        ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
+            ReminderOption.entries
+                .filter { it != ReminderOption.CUSTOM || selected == ReminderOption.CUSTOM }
+                .forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(labels.getValue(option)) },
+                        onClick = {
+                            onSelect(option)
+                            expanded = false
+                        },
+                    )
+                }
+        }
     }
 }
 

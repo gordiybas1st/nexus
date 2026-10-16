@@ -48,7 +48,7 @@ class AppAiContext @Inject constructor(
         return true
     }
 
-    override fun isTimerAvailable(): Boolean = false
+    override fun isTimerAvailable(): Boolean = true
 
     private suspend fun findOrCreateTag(name: String): Tag? {
         taskRepository.observeTags().first().firstOrNull { it.name.equals(name, ignoreCase = true) }?.let { return it }

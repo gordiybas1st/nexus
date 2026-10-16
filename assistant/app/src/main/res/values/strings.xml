@@ -140,4 +140,73 @@
     <string name="voice_unavailable">Speech recognition is not available on this device</string>
     <string name="voice_permission_denied">Microphone permission is needed for voice input</string>
     <string name="voice_error">Could not recognize speech, try again</string>
+
+    <!-- Reminders, daily review, Pomodoro, widget -->
+    <string name="channel_reminders">Task reminders</string>
+    <string name="channel_review">Daily review</string>
+    <string name="channel_timer">Pomodoro timer</string>
+    <string name="channel_timer_alerts">Timer alerts</string>
+    <string name="reminder_due">Due at %1$s</string>
+    <string name="reminder_generic">Reminder</string>
+    <string name="reminder_follow_up">Deadline passed 2 hours ago. Still on it?</string>
+    <string name="action_mark_done">Done</string>
+    <string name="action_snooze_hour">In 1 hour</string>
+    <plurals name="review_title">
+        <item quantity="one">%1$d task left for today</item>
+        <item quantity="other">%1$d tasks left for today</item>
+    </plurals>
+    <string name="review_text">Move them to tomorrow, keep them, or delete them?</string>
+    <string name="review_more">…and %1$d more</string>
+    <string name="review_postpone">To tomorrow</string>
+    <string name="review_keep">Keep</string>
+    <string name="review_delete">Delete</string>
+
+    <string name="timer_title">Focus timer</string>
+    <string name="timer_phase_idle">Ready to focus</string>
+    <string name="timer_phase_work">Focus</string>
+    <string name="timer_phase_break">Break</string>
+    <string name="timer_paused">Paused</string>
+    <string name="timer_start">Start</string>
+    <string name="timer_pause">Pause</string>
+    <string name="timer_resume">Resume</string>
+    <string name="timer_skip">Skip</string>
+    <string name="timer_stop">Stop</string>
+    <string name="timer_task">Task</string>
+    <string name="timer_no_task">No task</string>
+    <string name="timer_durations">%1$d min focus · %2$d min break</string>
+    <string name="timer_sessions">Sessions: %1$d</string>
+    <string name="timer_focused_today">Focused today: %1$d min</string>
+    <string name="timer_work_done">Focus session complete 🎉</string>
+    <string name="timer_work_done_text">Time for a short break.</string>
+    <string name="timer_break_done">Break is over</string>
+    <string name="timer_break_done_text">Ready for the next session?</string>
+    <string name="action_focus">Start focus timer</string>
+
+    <string name="section_reminder">Reminder</string>
+    <string name="reminder_auto">Automatic</string>
+    <string name="reminder_at_deadline">At the deadline</string>
+    <string name="reminder_10_min">10 minutes before</string>
+    <string name="reminder_1_hour">1 hour before</string>
+    <string name="reminder_1_day">1 day before</string>
+    <string name="reminder_custom">Custom time</string>
+    <string name="reminder_needs_deadline">Set a deadline first</string>
+
+    <string name="settings_productivity">Reminders and focus</string>
+    <string name="settings_notifications">Reminders</string>
+    <string name="settings_notifications_hint">Task reminders, a follow-up 2 h after a missed deadline</string>
+    <string name="settings_daily_review">Evening review</string>
+    <string name="settings_daily_review_hint">Every day at %1$s · tap to change the time</string>
+    <string name="settings_pomodoro_work">Focus length</string>
+    <string name="settings_pomodoro_break">Break length</string>
+    <string name="settings_exact_alarms">Allow exact reminders</string>
+    <string name="settings_exact_alarms_hint">Without it Android may deliver reminders a few minutes late</string>
+    <string name="minutes_fmt">%1$d min</string>
+    <string name="action_decrease">Decrease</string>
+    <string name="action_increase">Increase</string>
+
+    <string name="widget_name">Today\'s tasks</string>
+    <string name="widget_description">Top tasks for today and your daily progress</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_progress">Done %1$d of %2$d</string>
+    <string name="widget_empty">Nothing planned. Tap + to add a task.</string>
 </resources>

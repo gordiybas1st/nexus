@@ -9,6 +9,7 @@ import com.example.assistant.domain.model.RepeatOption
 import com.example.assistant.domain.model.Subtask
 import com.example.assistant.domain.model.Tag
 import com.example.assistant.domain.model.Task
+import com.example.assistant.pomodoro.PomodoroController
 import com.example.assistant.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -20,6 +21,27 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * Reminder choice in the editor. [offsetMs] is how long before the deadline it fires.
+ * AUTO = no explicit reminder (smart reminder on the deadline day + follow-up);
+ * CUSTOM = a reminder time that matches none of the presets (kept as is).
+ */
+enum class ReminderOption(val offsetMs: Long?) {
+    AUTO(null),
+    AT_DEADLINE(0L),
+    MIN_10(10 * 60_000L),
+    HOUR_1(60 * 60_000L),
+    DAY_1(24 * 60 * 60_000L),
+    CUSTOM(null);
+
+    companion object {
+        fun from(deadline: Long?, reminderAt: Long?): ReminderOption {
+            if (reminderAt == null || deadline == null) return AUTO
+            return entries.firstOrNull { it.offsetMs != null && deadline - it.offsetMs == reminderAt } ?: CUSTOM
+        }
+    }
+}
 
 /** Editable subtask row; [key] is a stable UI key, not a database id. */
 data class SubtaskDraft(val key: Long, val title: String, val isDone: Boolean)
@@ -39,6 +61,7 @@ data class TaskEditUiState(
     val tags: List<Tag> = emptyList(),
     val subtasks: List<SubtaskDraft> = emptyList(),
     val syncToCalendar: Boolean = false,
+    val reminder: ReminderOption = ReminderOption.AUTO,
 )
 
 /** One-off results that close the screen. */
@@ -51,6 +74,7 @@ sealed interface TaskEditEvent {
 class TaskEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: TaskRepository,
+    private val pomodoro: PomodoroController,
 ) : ViewModel() {
 
     private val taskId: Long = savedStateHandle.get<Long>(Routes.ARG_TASK_ID) ?: -1L
@@ -87,6 +111,7 @@ class TaskEditViewModel @Inject constructor(
                             tagId = task.tag?.id,
                             subtasks = task.subtasks.map { SubtaskDraft(nextKey++, it.title, it.isDone) },
                             syncToCalendar = task.syncToCalendar,
+                            reminder = ReminderOption.from(task.deadline, task.reminderAt),
                         )
                     }
                 }
@@ -110,6 +135,15 @@ class TaskEditViewModel @Inject constructor(
     fun onTagSelect(tagId: Long?) = _state.update { it.copy(tagId = tagId) }
 
     fun onSyncToggle(value: Boolean) = _state.update { it.copy(syncToCalendar = value) }
+
+    fun onReminderChange(value: ReminderOption) = _state.update { it.copy(reminder = value) }
+
+    /** Starts a Pomodoro session for this (already saved) task. Returns its id, or null for a new task. */
+    fun startFocus(): Long? {
+        val task = original ?: return null
+        pomodoro.start(task.id, _state.value.title.ifBlank { task.title })
+        return task.id
+    }
 
     /** Creates a tag and selects it. Blank names are ignored. */
     fun addTag(name: String, colorHex: String) {
@@ -152,6 +186,7 @@ class TaskEditViewModel @Inject constructor(
             description = s.description.trim().ifBlank { null },
             priority = s.priority,
             deadline = s.deadline,
+            reminderAt = reminderAt(s),
             rrule = rrule,
             tag = s.tags.firstOrNull { it.id == s.tagId },
             syncToCalendar = s.syncToCalendar,
@@ -162,6 +197,16 @@ class TaskEditViewModel @Inject constructor(
         viewModelScope.launch {
             repository.saveTask(task)
             _events.send(TaskEditEvent.Saved)
+        }
+    }
+
+    private fun reminderAt(s: TaskEditUiState): Long? {
+        val deadline = s.deadline ?: return null
+        return when (s.reminder) {
+            ReminderOption.AUTO -> null
+            // Keep a custom time only while the deadline is unchanged.
+            ReminderOption.CUSTOM -> original?.reminderAt?.takeIf { original?.deadline == deadline }
+            else -> s.reminder.offsetMs?.let { deadline - it }
         }
     }
 

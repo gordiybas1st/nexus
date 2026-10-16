@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -107,7 +108,52 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    /** Reminders, daily review and Pomodoro settings. */
+    val productivity: Flow<ProductivitySettings> = context.dataStore.data
+        .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
+        .map { prefs ->
+            ProductivitySettings(
+                notificationsEnabled = prefs[NOTIFICATIONS_ENABLED] ?: true,
+                dailyReviewEnabled = prefs[DAILY_REVIEW_ENABLED] ?: true,
+                dailyReviewHour = prefs[DAILY_REVIEW_HOUR] ?: 21,
+                dailyReviewMinute = prefs[DAILY_REVIEW_MINUTE] ?: 0,
+                pomodoroWorkMinutes = prefs[POMODORO_WORK] ?: 25,
+                pomodoroBreakMinutes = prefs[POMODORO_BREAK] ?: 5,
+                notificationPermissionAsked = prefs[NOTIFICATION_PERMISSION_ASKED] ?: false,
+            )
+        }
+
+    suspend fun setNotificationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[NOTIFICATIONS_ENABLED] = enabled }
+    }
+
+    suspend fun setDailyReview(enabled: Boolean, hour: Int, minute: Int) {
+        context.dataStore.edit {
+            it[DAILY_REVIEW_ENABLED] = enabled
+            it[DAILY_REVIEW_HOUR] = hour.coerceIn(0, 23)
+            it[DAILY_REVIEW_MINUTE] = minute.coerceIn(0, 59)
+        }
+    }
+
+    suspend fun setPomodoroDurations(workMinutes: Int, breakMinutes: Int) {
+        context.dataStore.edit {
+            it[POMODORO_WORK] = workMinutes.coerceIn(1, 120)
+            it[POMODORO_BREAK] = breakMinutes.coerceIn(1, 60)
+        }
+    }
+
+    suspend fun setNotificationPermissionAsked() {
+        context.dataStore.edit { it[NOTIFICATION_PERMISSION_ASKED] = true }
+    }
+
     private companion object {
+        val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+        val DAILY_REVIEW_ENABLED = booleanPreferencesKey("daily_review_enabled")
+        val DAILY_REVIEW_HOUR = intPreferencesKey("daily_review_hour")
+        val DAILY_REVIEW_MINUTE = intPreferencesKey("daily_review_minute")
+        val POMODORO_WORK = intPreferencesKey("pomodoro_work_minutes")
+        val POMODORO_BREAK = intPreferencesKey("pomodoro_break_minutes")
+        val NOTIFICATION_PERMISSION_ASKED = booleanPreferencesKey("notification_permission_asked")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val ACCOUNT_EMAIL = stringPreferencesKey("account_email")
@@ -125,4 +171,15 @@ data class SyncSettings(
     val authRequired: Boolean = false,
     val lastSyncAt: Long? = null,
     val lastError: String? = null,
+)
+
+/** Snapshot of reminder / review / Pomodoro settings. */
+data class ProductivitySettings(
+    val notificationsEnabled: Boolean = true,
+    val dailyReviewEnabled: Boolean = true,
+    val dailyReviewHour: Int = 21,
+    val dailyReviewMinute: Int = 0,
+    val pomodoroWorkMinutes: Int = 25,
+    val pomodoroBreakMinutes: Int = 5,
+    val notificationPermissionAsked: Boolean = false,
 )

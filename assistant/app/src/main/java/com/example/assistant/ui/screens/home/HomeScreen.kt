@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -76,6 +77,7 @@ fun HomeRoute(
     onAddTask: () -> Unit,
     onEditTask: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenTimer: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -103,6 +105,7 @@ fun HomeRoute(
         onTagClick = viewModel::toggleTag,
         onQueryChange = viewModel::setQuery,
         onSearchActiveChange = viewModel::setSearchActive,
+        onTimerClick = onOpenTimer,
         onSyncClick = {
             if (state.syncStatus.state == SyncState.AUTH_REQUIRED || state.syncStatus.state == SyncState.ERROR) {
                 onOpenSettings()
@@ -132,6 +135,7 @@ fun HomeContent(
     onTagClick: (Long) -> Unit,
     onQueryChange: (String) -> Unit,
     onSearchActiveChange: (Boolean) -> Unit,
+    onTimerClick: () -> Unit,
     onSyncClick: () -> Unit,
     onClearCompleted: () -> Unit,
 ) {
@@ -153,6 +157,9 @@ fun HomeContent(
                         }
                     } else {
                         SyncIndicator(state.syncStatus, onSyncClick)
+                        IconButton(onClick = onTimerClick) {
+                            Icon(Icons.Outlined.Timer, stringResource(R.string.timer_title))
+                        }
                         IconButton(onClick = { onSearchActiveChange(true) }) {
                             Icon(Icons.Default.Search, stringResource(R.string.action_search))
                         }
@@ -344,6 +351,7 @@ private fun HomePreview() {
             onTagClick = {},
             onQueryChange = {},
             onSearchActiveChange = {},
+            onTimerClick = {},
             onSyncClick = {},
             onClearCompleted = {},
         )

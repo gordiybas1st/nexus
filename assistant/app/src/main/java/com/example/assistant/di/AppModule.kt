@@ -10,6 +10,7 @@ import com.example.assistant.data.local.dao.SyncConflictDao
 import com.example.assistant.data.local.dao.SyncQueueDao
 import com.example.assistant.data.local.dao.TagDao
 import com.example.assistant.data.local.dao.TaskDao
+import com.example.assistant.data.local.dao.TimeEntryDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,7 +35,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
             .build()
 
     @Provides
@@ -57,6 +58,9 @@ object AppModule {
 
     @Provides
     fun provideChatDao(db: AppDatabase): ChatDao = db.chatDao()
+
+    @Provides
+    fun provideTimeEntryDao(db: AppDatabase): TimeEntryDao = db.timeEntryDao()
 
     @Provides
     @Singleton

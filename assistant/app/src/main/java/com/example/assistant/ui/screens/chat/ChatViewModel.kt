@@ -9,13 +9,17 @@ import com.example.assistant.ai.Lang
 import com.example.assistant.ai.MiniAI
 import com.example.assistant.data.repository.ChatRepository
 import com.example.assistant.domain.model.ChatMessage
+import com.example.assistant.pomodoro.PomodoroController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -35,7 +39,13 @@ class ChatViewModel @Inject constructor(
     private val chat: ChatRepository,
     private val ai: MiniAI,
     private val aiContext: AppAiContext,
+    private val pomodoro: PomodoroController,
 ) : ViewModel() {
+
+    private val _openTimer = Channel<Unit>(Channel.BUFFERED)
+
+    /** Emits when the assistant started the timer and the timer screen should open. */
+    val openTimer: Flow<Unit> = _openTimer.receiveAsFlow()
 
     private val typing = MutableStateFlow(false)
     private val mutex = Mutex()
@@ -64,6 +74,10 @@ class ChatViewModel @Inject constructor(
                     val wait = Random.nextLong(TYPING_MIN_MS, TYPING_MAX_MS + 1) - (System.currentTimeMillis() - started)
                     if (wait > 0) delay(wait)
                     chat.add(reply.text, isUser = false, taskId = (reply.action as? BotAction.OpenTask)?.taskId)
+                    if (reply.action == BotAction.StartTimer) {
+                        pomodoro.start(null, null)
+                        _openTimer.send(Unit)
+                    }
                 } finally {
                     typing.value = false
                 }

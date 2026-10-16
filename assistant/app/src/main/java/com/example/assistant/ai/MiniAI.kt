@@ -37,7 +37,7 @@ interface AiContext {
     /** Starts calendar sync; false when no calendar is connected. */
     suspend fun requestSync(): Boolean
 
-    /** False until the Pomodoro timer exists (Stage 4). */
+    /** Whether the Pomodoro timer can be started (false in tests). */
     fun isTimerAvailable(): Boolean
 }
 
@@ -93,7 +93,7 @@ class MiniAI(
             }
             UserIntent.ClearCompleted -> BotReply(responses.cleared(lang, ctx.clearCompleted()))
             UserIntent.StartTimer ->
-                if (ctx.isTimerAvailable()) BotReply("⏱", BotAction.StartTimer) else BotReply(responses.timerUnavailable(lang))
+                if (ctx.isTimerAvailable()) BotReply(responses.timerStarted(lang), BotAction.StartTimer) else BotReply(responses.timerUnavailable(lang))
             is UserIntent.SetTheme -> {
                 ctx.setDarkTheme(intent.dark)
                 BotReply(responses.theme(lang, intent.dark))

@@ -103,10 +103,16 @@ class ResponseGenerator(
 
     // ── Commands ──
 
+    fun timerStarted(lang: Lang): String = say(
+        lang,
+        listOf("⏱ Таймер запущен. Сосредоточься на одном деле — я скажу, когда отдыхать.", "⏱ Поехали! Фокус-сессия началась."),
+        listOf("⏱ Timer started. Focus on one thing — I'll tell you when to take a break.", "⏱ Let's go! Focus session started."),
+    )
+
     fun timerUnavailable(lang: Lang): String = say(
         lang,
-        listOf("⏱ Таймер Pomodoro появится в следующем обновлении. А пока: 25 минут работы, 5 минут отдыха!"),
-        listOf("⏱ The Pomodoro timer arrives in the next update. Meanwhile: 25 minutes of work, 5 minutes of rest!"),
+        listOf("⏱ Таймер сейчас недоступен. Правило простое: 25 минут работы, 5 минут отдыха!"),
+        listOf("⏱ The timer isn't available right now. The rule is simple: 25 minutes of work, 5 minutes of rest!"),
     )
 
     fun theme(lang: Lang, dark: Boolean): String = when (lang) {

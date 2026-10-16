@@ -140,4 +140,75 @@
     <string name="voice_unavailable">Распознавание речи недоступно на этом устройстве</string>
     <string name="voice_permission_denied">Для голосового ввода нужен доступ к микрофону</string>
     <string name="voice_error">Не удалось распознать речь, попробуйте ещё раз</string>
+
+    <!-- Напоминания, вечерний обзор, Pomodoro, виджет -->
+    <string name="channel_reminders">Напоминания о задачах</string>
+    <string name="channel_review">Вечерний обзор</string>
+    <string name="channel_timer">Таймер Pomodoro</string>
+    <string name="channel_timer_alerts">Сигналы таймера</string>
+    <string name="reminder_due">Срок в %1$s</string>
+    <string name="reminder_generic">Напоминание</string>
+    <string name="reminder_follow_up">Дедлайн прошёл 2 часа назад. Ещё в работе?</string>
+    <string name="action_mark_done">Готово</string>
+    <string name="action_snooze_hour">Через час</string>
+    <plurals name="review_title">
+        <item quantity="one">На сегодня осталась %1$d задача</item>
+        <item quantity="few">На сегодня осталось %1$d задачи</item>
+        <item quantity="many">На сегодня осталось %1$d задач</item>
+        <item quantity="other">На сегодня осталось %1$d задачи</item>
+    </plurals>
+    <string name="review_text">Перенести на завтра, оставить или удалить?</string>
+    <string name="review_more">…и ещё %1$d</string>
+    <string name="review_postpone">На завтра</string>
+    <string name="review_keep">Оставить</string>
+    <string name="review_delete">Удалить</string>
+
+    <string name="timer_title">Фокус-таймер</string>
+    <string name="timer_phase_idle">Готово к фокусу</string>
+    <string name="timer_phase_work">Фокус</string>
+    <string name="timer_phase_break">Перерыв</string>
+    <string name="timer_paused">Пауза</string>
+    <string name="timer_start">Старт</string>
+    <string name="timer_pause">Пауза</string>
+    <string name="timer_resume">Продолжить</string>
+    <string name="timer_skip">Пропустить</string>
+    <string name="timer_stop">Стоп</string>
+    <string name="timer_task">Задача</string>
+    <string name="timer_no_task">Без задачи</string>
+    <string name="timer_durations">%1$d мин фокуса · %2$d мин перерыва</string>
+    <string name="timer_sessions">Сессий: %1$d</string>
+    <string name="timer_focused_today">В фокусе сегодня: %1$d мин</string>
+    <string name="timer_work_done">Фокус-сессия завершена 🎉</string>
+    <string name="timer_work_done_text">Пора сделать короткий перерыв.</string>
+    <string name="timer_break_done">Перерыв закончился</string>
+    <string name="timer_break_done_text">Готовы к следующей сессии?</string>
+    <string name="action_focus">Запустить фокус-таймер</string>
+
+    <string name="section_reminder">Напоминание</string>
+    <string name="reminder_auto">Автоматически</string>
+    <string name="reminder_at_deadline">В момент дедлайна</string>
+    <string name="reminder_10_min">За 10 минут</string>
+    <string name="reminder_1_hour">За час</string>
+    <string name="reminder_1_day">За день</string>
+    <string name="reminder_custom">Своё время</string>
+    <string name="reminder_needs_deadline">Сначала укажите дедлайн</string>
+
+    <string name="settings_productivity">Напоминания и фокус</string>
+    <string name="settings_notifications">Напоминания</string>
+    <string name="settings_notifications_hint">Напоминания о задачах и повтор через 2 ч после пропущенного дедлайна</string>
+    <string name="settings_daily_review">Вечерний обзор</string>
+    <string name="settings_daily_review_hint">Каждый день в %1$s · нажмите, чтобы изменить время</string>
+    <string name="settings_pomodoro_work">Длина фокуса</string>
+    <string name="settings_pomodoro_break">Длина перерыва</string>
+    <string name="settings_exact_alarms">Разрешить точные напоминания</string>
+    <string name="settings_exact_alarms_hint">Без разрешения Android может присылать напоминания с опозданием на несколько минут</string>
+    <string name="minutes_fmt">%1$d мин</string>
+    <string name="action_decrease">Уменьшить</string>
+    <string name="action_increase">Увеличить</string>
+
+    <string name="widget_name">Задачи на сегодня</string>
+    <string name="widget_description">Главные задачи на сегодня и прогресс дня</string>
+    <string name="widget_today">Сегодня</string>
+    <string name="widget_progress">Выполнено %1$d из %2$d</string>
+    <string name="widget_empty">Ничего не запланировано. Нажмите +, чтобы добавить задачу.</string>
 </resources>

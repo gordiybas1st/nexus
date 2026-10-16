@@ -80,6 +80,19 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE googleEventId IS NOT NULL")
     suspend fun getAllWithEvents(): List<TaskEntity>
 
+    /** Not-done tasks that may need reminders. */
+    @Query("SELECT * FROM tasks WHERE isDone = 0 AND (deadline IS NOT NULL OR reminderAt IS NOT NULL)")
+    suspend fun getActiveWithTimes(): List<TaskEntity>
+
+    /** Completion times of recently finished tasks (for the reminder-hour heuristic). */
+    @Query("SELECT completedAt FROM tasks WHERE isDone = 1 AND completedAt IS NOT NULL ORDER BY completedAt DESC LIMIT :limit")
+    suspend fun getRecentCompletionTimes(limit: Int): List<Long>
+
+    /** Not-done tasks due before [end] (today's and overdue ones). */
+    @Transaction
+    @Query("SELECT * FROM tasks WHERE isDone = 0 AND deadline IS NOT NULL AND deadline < :end ORDER BY deadline")
+    suspend fun getIncompleteDueBefore(end: Long): List<TaskWithRelations>
+
     /** Deletes every completed task and returns how many were removed. */
     @Query("DELETE FROM tasks WHERE isDone = 1")
     suspend fun clearCompleted(): Int

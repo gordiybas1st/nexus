@@ -1,19 +1,25 @@
 package com.example.assistant.ui.screens.settings
 
 import android.app.Activity
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,15 +30,23 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.NightsStay
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -43,11 +57,16 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -62,12 +81,15 @@ import com.example.assistant.BuildConfig
 import com.example.assistant.R
 import com.example.assistant.data.local.dao.SyncConflictDao
 import com.example.assistant.data.local.entity.SyncConflictEntity
+import com.example.assistant.data.prefs.ProductivitySettings
 import com.example.assistant.data.prefs.UserPreferences
 import com.example.assistant.data.prefs.UserSettings
 import com.example.assistant.data.remote.CalendarAccessResult
 import com.example.assistant.data.remote.GoogleAuthManager
 import com.example.assistant.data.remote.SignInResult
 import com.example.assistant.domain.model.ThemeMode
+import com.example.assistant.notifications.DailyReviewScheduler
+import com.example.assistant.notifications.ReminderScheduler
 import com.example.assistant.sync.SyncQueueWriter
 import com.example.assistant.sync.SyncScheduler
 import com.example.assistant.sync.SyncState
@@ -101,8 +123,33 @@ class SettingsViewModel @Inject constructor(
     private val scheduler: SyncScheduler,
     private val queueWriter: SyncQueueWriter,
     private val conflictDao: SyncConflictDao,
+    private val reminderScheduler: ReminderScheduler,
+    private val dailyReviewScheduler: DailyReviewScheduler,
     syncStatusProvider: SyncStatusProvider,
 ) : ViewModel() {
+
+    val productivity: StateFlow<ProductivitySettings> =
+        preferences.productivity.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProductivitySettings())
+
+    /** Turns reminders and the daily review on/off and re-creates the alarms. */
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferences.setNotificationsEnabled(enabled)
+            reminderScheduler.rescheduleAll()
+            dailyReviewScheduler.schedule()
+        }
+    }
+
+    fun setDailyReview(enabled: Boolean, hour: Int, minute: Int) {
+        viewModelScope.launch {
+            preferences.setDailyReview(enabled, hour, minute)
+            dailyReviewScheduler.schedule()
+        }
+    }
+
+    fun setPomodoro(workMinutes: Int, breakMinutes: Int) {
+        viewModelScope.launch { preferences.setPomodoroDurations(workMinutes, breakMinutes) }
+    }
 
     val settings: StateFlow<UserSettings> =
         preferences.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserSettings())
@@ -216,6 +263,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
     val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
     val syncLog by viewModel.syncLog.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
+    val productivity by viewModel.productivity.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
 
@@ -240,8 +288,12 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
         syncStatus = syncStatus,
         syncLog = syncLog,
         busy = busy,
+        productivity = productivity,
         snackbarHostState = snackbar,
         actions = SettingsActions(
+            onNotificationsChange = viewModel::setNotificationsEnabled,
+            onDailyReviewChange = viewModel::setDailyReview,
+            onPomodoroChange = viewModel::setPomodoro,
             onThemeModeChange = viewModel::setThemeMode,
             onDynamicColorChange = viewModel::setDynamicColor,
             onConnect = { context.findActivity()?.let(viewModel::connect) },
@@ -255,6 +307,9 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
 
 /** Callbacks of the settings screen. */
 data class SettingsActions(
+    val onNotificationsChange: (Boolean) -> Unit = {},
+    val onDailyReviewChange: (enabled: Boolean, hour: Int, minute: Int) -> Unit = { _, _, _ -> },
+    val onPomodoroChange: (workMinutes: Int, breakMinutes: Int) -> Unit = { _, _ -> },
     val onThemeModeChange: (ThemeMode) -> Unit = {},
     val onDynamicColorChange: (Boolean) -> Unit = {},
     val onConnect: () -> Unit = {},
@@ -272,6 +327,7 @@ fun SettingsContent(
     syncStatus: SyncStatus,
     syncLog: List<SyncConflictEntity>,
     busy: Boolean,
+    productivity: ProductivitySettings,
     snackbarHostState: SnackbarHostState,
     actions: SettingsActions,
 ) {
@@ -301,6 +357,9 @@ fun SettingsContent(
                     Text(stringResource(R.string.action_clear_log))
                 }
             }
+
+            SectionHeader(stringResource(R.string.settings_productivity))
+            ProductivitySection(productivity, actions)
 
             SectionHeader(stringResource(R.string.settings_appearance))
             ThemeSection(settings, actions)
@@ -377,6 +436,108 @@ private fun syncStatusText(status: SyncStatus): String = when (status.state) {
     SyncState.AUTH_REQUIRED -> stringResource(R.string.sync_state_auth)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProductivitySection(settings: ProductivitySettings, actions: SettingsActions) {
+    val context = LocalContext.current
+    var showTimePicker by rememberSaveable { mutableStateOf(false) }
+
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_notifications)) },
+        supportingContent = { Text(stringResource(R.string.settings_notifications_hint)) },
+        leadingContent = { Icon(Icons.Outlined.Notifications, null) },
+        trailingContent = { Switch(checked = settings.notificationsEnabled, onCheckedChange = actions.onNotificationsChange) },
+    )
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_daily_review)) },
+        supportingContent = {
+            Text(stringResource(R.string.settings_daily_review_hint, "%02d:%02d".format(settings.dailyReviewHour, settings.dailyReviewMinute)))
+        },
+        leadingContent = { Icon(Icons.Outlined.NightsStay, null) },
+        trailingContent = {
+            Switch(
+                checked = settings.dailyReviewEnabled,
+                enabled = settings.notificationsEnabled,
+                onCheckedChange = { actions.onDailyReviewChange(it, settings.dailyReviewHour, settings.dailyReviewMinute) },
+            )
+        },
+        modifier = Modifier.clickable(enabled = settings.notificationsEnabled && settings.dailyReviewEnabled) { showTimePicker = true },
+    )
+    MinutesStepper(
+        label = stringResource(R.string.settings_pomodoro_work),
+        value = settings.pomodoroWorkMinutes,
+        range = 5..90,
+        step = 5,
+        onChange = { actions.onPomodoroChange(it, settings.pomodoroBreakMinutes) },
+    )
+    MinutesStepper(
+        label = stringResource(R.string.settings_pomodoro_break),
+        value = settings.pomodoroBreakMinutes,
+        range = 1..30,
+        step = 1,
+        onChange = { actions.onPomodoroChange(settings.pomodoroWorkMinutes, it) },
+    )
+
+    // Android 12 only: exact alarms need user approval (13+ uses USE_EXACT_ALARM).
+    if (Build.VERSION.SDK_INT == Build.VERSION_CODES.S || Build.VERSION.SDK_INT == Build.VERSION_CODES.S_V2) {
+        val alarmManager = context.getSystemService(AlarmManager::class.java)
+        if (alarmManager != null && !alarmManager.canScheduleExactAlarms()) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_exact_alarms)) },
+                supportingContent = { Text(stringResource(R.string.settings_exact_alarms_hint)) },
+                leadingContent = { Icon(Icons.Outlined.Alarm, null) },
+                modifier = Modifier.clickable {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.packageName)),
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    if (showTimePicker) {
+        val timeState = rememberTimePickerState(
+            initialHour = settings.dailyReviewHour,
+            initialMinute = settings.dailyReviewMinute,
+            is24Hour = DateFormat.is24HourFormat(context),
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTimePicker = false
+                    actions.onDailyReviewChange(true, timeState.hour, timeState.minute)
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+            text = { TimePicker(state = timeState) },
+        )
+    }
+}
+
+@Composable
+private fun MinutesStepper(label: String, value: Int, range: IntRange, step: Int, onChange: (Int) -> Unit) {
+    ListItem(
+        headlineContent = { Text(label) },
+        supportingContent = { Text(stringResource(R.string.minutes_fmt, value)) },
+        leadingContent = { Icon(Icons.Outlined.Timer, null) },
+        trailingContent = {
+            Row {
+                IconButton(onClick = { onChange((value - step).coerceIn(range)) }, enabled = value > range.first) {
+                    Icon(Icons.Default.Remove, stringResource(R.string.action_decrease))
+                }
+                IconButton(onClick = { onChange((value + step).coerceIn(range)) }, enabled = value < range.last) {
+                    Icon(Icons.Default.Add, stringResource(R.string.action_increase))
+                }
+            }
+        },
+    )
+}
+
 @Composable
 private fun ThemeSection(settings: UserSettings, actions: SettingsActions) {
     Column(Modifier.selectableGroup()) {
@@ -439,6 +600,7 @@ private fun SettingsPreview() {
             syncStatus = SyncStatus(state = SyncState.PENDING, pendingCount = 2, email = "me@gmail.com"),
             syncLog = listOf(SyncConflictEntity(1, 3, "abc", "Event was edited in Calendar; local version kept", System.currentTimeMillis())),
             busy = false,
+            productivity = ProductivitySettings(),
             snackbarHostState = remember { SnackbarHostState() },
             actions = SettingsActions(),
         )
